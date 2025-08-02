@@ -115,10 +115,12 @@ kubernetes-build/
 │   │       └── build-version.yml
 │   └── build-app/                          # Application build role
 │       ├── templates/
+│       |   ├── Dockerfile-cni.j2           # cni plugins build
 │       |   ├── Dockerfile-containerd.j2    # containerd build
 │       |   ├── Dockerfile-etcd-3.4.j2      # etcd 3.4.x build
 │       |   ├── Dockerfile-etcd-3.6.j2      # etcd 3.6.x build
-│       |   └── Dockerfile-kubernetes.j2    # Kubernetes build
+│       |   |── Dockerfile-kubernetes.j2    # Kubernetes build
+│       |   └── Dockerfile-runc.j2          # runc build
 │       └── tasks/
 │           ├── main.yml
 │           └── build-version.yml
