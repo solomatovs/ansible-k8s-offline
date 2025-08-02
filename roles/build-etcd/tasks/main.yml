@@ -1,8 +1,11 @@
 # Подготовительный этап - создание директорий и загрузка архивов
+- name: extract go version list
+  set_fact:
+    all_go_versions: "{{ go_versions | map(attribute='version') | list }}"
 
 - name: select go bootstrap version
   set_fact:
-    go_bootstrap: "{{ go_versions[-1] }}" # select latest version
+    go_bootstrap: "{{ all_go_versions[-1] }}" # select latest version
 
 # установка переменной для предыдущего go bootstrap
 - name: set prev go bootstrap archive name
