@@ -24,7 +24,7 @@ display_skipped_hosts = False
 display_ok_hosts = True
 
 # Логирование
-log_path = ../log/ansible.log
+log_path = ./ansible.log
 
 # Become (sudo) настройки - отключаем по умолчанию
 [privilege_escalation]
