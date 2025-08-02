@@ -98,34 +98,33 @@ make status
 
 ```
 kubernetes-build/
-├── Makefile                    # Build automation and utilities
-├── README.md                   # This file
-├── inventory                   # Ansible inventory file
+├── Makefile                                # Build automation and utilities
+├── README.md                               # This file
+├── inventory                               # Ansible inventory file
 ├── group_vars/
-│   └── all.yml                # Global configuration
+│   └── all.yml                             # Global configuration
 ├── playbooks/
-│   └── build.yml              # Main build playbook
+│   └── build.yml                           # Main build playbook
 ├── roles/
-│   ├── build-go/              # Go compiler build role
+│   ├── build-go/                           # Go compiler build role
+│   |   ├── templates/
+│   |   |   ├── Dockerfile-1.4.j2           # Go 1.4 bootstrap
+│   |   |   └── Dockerfile.j2               # Standard Go builds
 │   │   └── tasks/
 │   │       ├── main.yml
 │   │       └── build-version.yml
-│   └── build-app/             # Application build role
+│   └── build-app/                          # Application build role
+│       ├── templates/
+│       |   ├── Dockerfile-containerd.j2    # containerd build
+│       |   ├── Dockerfile-etcd-3.4.j2      # etcd 3.4.x build
+│       |   ├── Dockerfile-etcd-3.6.j2      # etcd 3.6.x build
+│       |   └── Dockerfile-kubernetes.j2    # Kubernetes build
 │       └── tasks/
 │           ├── main.yml
 │           └── build-version.yml
-├── templates/                  # Dockerfile templates
-│   ├── Dockerfile-1.4.j2      # Go 1.4 bootstrap
-│   ├── Dockerfile.j2           # Standard Go builds
-│   ├── Dockerfile-runc.j2      # runc build
-│   ├── Dockerfile-cni.j2       # CNI plugins build
-│   ├── Dockerfile-containerd.j2 # containerd build
-│   ├── Dockerfile-etcd-3.4.j2  # etcd 3.4.x build
-│   ├── Dockerfile-etcd-3.6.j2  # etcd 3.6.x build
-│   └── Dockerfile-kubernetes.j2 # Kubernetes build
-└── artifacts/                  # Build artifacts (created during build)
-    ├── src/                   # Source archives
-    └── bin/                   # Binary archives
+└── artifacts/                              # Build artifacts (created during build)
+    ├── src/                                # Source archives
+    └── bin/                                # Binary archives
 ```
 
 ## ⚙️ Configuration
