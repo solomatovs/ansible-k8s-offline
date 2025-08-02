@@ -1,0 +1,12 @@
+local_src_dir: "{{ artifact_dir_src_local }}/go-{{ go_build_version.version }}"
+local_bin_dir: "{{ artifact_dir_bin_local }}/go-{{ go_build_version.version }}"
+
+remote_src_dir: "{{ artifact_dir_src_remote }}/go-{{ go_build_version.version }}"
+remote_bin_dir: "{{ artifact_dir_bin_remote }}/go-{{ go_build_version.version }}"
+
+archive_src: "go-{{ go_build_version.version }}.tar.gz"
+archive_bin: "go{{ go_build_version.version }}-bootstrap.tar.gz"
+
+docker_container_name: "go-{{ go_build_version.version }}"
+docker_image_name: "go"
+docker_image_tag: "{{ go_build_version.version }}"

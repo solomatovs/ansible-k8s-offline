@@ -1,0 +1,5 @@
+ansible-env
+log
+playbooks/artifacts
+inventory/hosts.yml
+ansible.cfg

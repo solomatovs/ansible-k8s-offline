@@ -1,0 +1,39 @@
+FROM debian:bullseye-slim
+
+RUN apt-get update && apt-get install -y \
+    bash \
+    build-essential \
+    curl \
+    ca-certificates \
+    tar \
+    git \
+&& rm -rf /var/lib/apt/lists/*
+
+# Копируем go bootstrap внутрь контейнера
+COPY {{ go_bootstrap_bin }} /usr/local/
+# Копируем исходники внутрь контейнера
+COPY {{ archive_src }} /app/src/
+
+# Распаковываем
+RUN  mkdir /usr/local/go \
+    && tar -xzf /usr/local/{{ go_bootstrap_bin }} -C /usr/local/go \
+    && tar -xzf /app/src/{{ archive_src }} -C /app/src --strip-components=1
+
+# Компилируем etcd
+WORKDIR /app/src
+
+RUN export GOROOT=/usr/local/go \
+    && export PATH=$PATH:/usr/local/go/bin \
+    && export CGO_ENABLED=0 \
+    && export CGO_CXXFLAGS="-I/usr/local/go/include" \
+    && export CGO_CFLAGS="-I/usr/local/go/include" \
+    && export CGO_LDFLAGS="-L/usr/local/go/lib" \
+    && export GOFLAGS="-buildvcs=false" \
+    && export GOPROXY="{{ go_proxy_url }}" \
+    && go mod vendor \
+    && ./build.sh \
+    \
+    # verify bin files
+    && bin/etcd --version \
+    # copy bin
+    && /bin/cp -rf bin /app

@@ -1,0 +1,21 @@
+# Подготовительный этап - создание директорий и загрузка архивов
+
+- name: select go bootstrap version
+  set_fact:
+    go_bootstrap: "{{ go_versions[-1] }}" # select latest version
+
+# установка переменной для предыдущего go bootstrap
+- name: set prev go bootstrap archive name
+  set_fact:
+    go_dir: "{{ artifact_dir_bin_local }}/go-{{ go_bootstrap }}"
+    go_bin: "{{ 'go1.4-bootstrap-20171003.tar.gz' if go_bootstrap == '1.4' else 'go' + go_bootstrap + '-bootstrap.tar.gz' }}"
+
+# Основной цикл - обработка каждой версии etcd последовательно
+- name: loop etcd build all versions
+  include_tasks: etcd-build-version.yml
+  loop: "{{ etcd_version_tags }}"
+  loop_control:
+    loop_var: etcd_build_version
+  vars:
+    go_bootstrap_dir: "{{ go_dir }}"
+    go_bootstrap_bin: "{{ go_bin }}"

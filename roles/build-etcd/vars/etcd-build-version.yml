@@ -1,0 +1,12 @@
+local_src_dir: "{{ artifact_dir_src_local }}/etcd-{{ etcd_build_version.version }}"
+local_bin_dir: "{{ artifact_dir_bin_local }}/etcd-{{ etcd_build_version.version }}"
+
+remote_src_dir: "{{ artifact_dir_src_remote }}/etcd-{{ etcd_build_version.version }}"
+remote_bin_dir: "{{ artifact_dir_bin_remote }}/etcd-{{ etcd_build_version.version }}"
+
+archive_src: "etcd-{{ etcd_build_version.version }}.tar.gz"
+archive_bin: "etcd-{{ etcd_build_version.version }}.tar.gz"
+
+docker_container_name: "etcd-{{ etcd_build_version.version }}"
+docker_image_name: "etcd"
+docker_image_tag: "{{ etcd_build_version.version }}"

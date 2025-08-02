@@ -1,0 +1,9 @@
+# playbooks/build.yml
+- name: Build src
+  hosts: docker_build
+  become: true
+  roles:
+    - { role: build-go, tags: ['build-go'] }
+    - { role: build-etcd, tags: ['build-etcd'] }
+  vars_files:
+    - ../group_vars/all.yml

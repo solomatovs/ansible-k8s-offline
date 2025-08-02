@@ -1,0 +1,24 @@
+FROM debian:bullseye-slim
+
+RUN apt-get update && apt-get install -y \
+    bash \
+    build-essential \
+    curl \
+    ca-certificates \
+    tar \
+    git \
+&& rm -rf /var/lib/apt/lists/*
+
+# Копируем архив внутрь контейнера
+COPY {{ archive_src }} /app/src/
+
+# Распаковываем
+RUN tar -xzf /app/src/{{ archive_src }} -C /app/src --strip-components=1
+
+# Компилируем Go (папка /app/src/src корректна, там лежат исходники)
+WORKDIR /app/src/src
+
+RUN export GOPROXY="{{ go_proxy_url }}" \
+    && ./make.bash \
+    && mkdir -p /app/bin \
+    && tar -czf "/app/bin/{{ archive_bin }}" -C /app/src bin pkg src

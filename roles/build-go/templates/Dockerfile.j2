@@ -1,0 +1,29 @@
+FROM debian:bullseye-slim
+
+RUN apt-get update && apt-get install -y \
+    bash \
+    build-essential \
+    curl \
+    ca-certificates \
+    tar \
+    git \
+&& rm -rf /var/lib/apt/lists/*
+
+# Копируем go bootstrap внутрь контейнера
+COPY {{ go_bootstrap_bin }} /usr/local/
+# Копируем архив внутрь контейнера
+COPY {{ archive_src }} /app/src/
+
+# Распаковываем
+RUN mkdir /usr/local/go \
+    && tar -xzf /usr/local/{{ go_bootstrap_bin }} -C /usr/local/go \
+    && tar -xzf /app/src/{{ archive_src }} -C /app/src --strip-components=1
+
+# Компилируем Go (папка /app/src/src корректна, там лежат исходники)
+WORKDIR /app/src/src
+
+RUN export GOROOT_BOOTSTRAP=/usr/local/go \
+    export GOPROXY="{{ go_proxy_url }}" \
+    && ./make.bash \
+    && mkdir -p /app/bin \
+    && tar -czf "/app/bin/{{ archive_bin }}" -C /app/src bin pkg src
