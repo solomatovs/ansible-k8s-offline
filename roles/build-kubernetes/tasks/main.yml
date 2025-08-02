@@ -1,6 +1,0 @@
-# Основной цикл - обработка каждой версии kubernetes последовательно
-- name: loop kubernetes build all versions
-  include_tasks: build-version.yml
-  loop: "{{ kubernetes_version_tags }}"
-  loop_control:
-    loop_var: build_version

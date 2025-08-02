@@ -1,7 +1,6 @@
 # Основной цикл - обработка каждой версии Go последовательно
 - name: loop go build all versions
-  include_tasks: go-build-version.yml
+  include_tasks: build-version.yml
   loop: "{{ go_versions }}"
   loop_control:
-    loop_var: go_build_version
-
+    loop_var: build_version

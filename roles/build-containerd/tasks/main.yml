@@ -1,6 +1,0 @@
-# Основной цикл - обработка каждой версии containerd последовательно
-- name: loop containerd build all versions
-  include_tasks: build-version.yml
-  loop: "{{ containerd_version_tags }}"
-  loop_control:
-    loop_var: build_version

@@ -1,13 +1,35 @@
 # playbooks/build.yml
-- name: Build src
+- name: build src
   hosts: docker_build
+  gather_facts: false
   become: true
-  roles:
-    - { role: build-go, tags: ['build-go'] }
-    - { role: build-etcd, tags: ['build-etcd'] }
-    - { role: build-containerd, tags: ['build-containerd'] }
-    - { role: build-runc, tags: ['build-runc'] }
-    - { role: build-kubernetes, tags: ['build-kubernetes'] }
-    - { role: build-cni, tags: ['build-cni'] }
+
   vars_files:
     - ../group_vars/all.yml
+
+  vars:
+    build_app: "{{ build_app | default('all') }}"
+
+  tasks:
+    - name: build go
+      include_role:
+        name: build-go
+      when: build_app == 'all' or build_app == 'go'
+      vars:
+        go_versions: "{{ go.versions }}"
+        go_repo: "{{ go.repo }}"
+        go_proxy_url: "{{ go.proxy_url }}"
+    - name: build application
+      include_role:
+        name: build-app
+      loop: "{{ apps }}"
+      loop_control:
+        loop_var: app
+      when: app.name == build_app or build_app == 'all'
+      vars:
+        go_versions: "{{ go.versions }}"
+        go_proxy_url: "{{ go.proxy_url }}"
+        app_name: "{{ app.name }}"
+        app_repo: "{{ app.repo }}"
+        app_versions: "{{ app.versions }}"
+        app_dockerfile: "{{ app.dockerfile }}"

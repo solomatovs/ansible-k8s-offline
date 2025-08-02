@@ -19,6 +19,8 @@ RUN tar -xzf /app/src/{{ archive_src }} -C /app/src --strip-components=1
 WORKDIR /app/src/src
 
 RUN export GOPROXY="{{ go_proxy_url }}" \
+    && export CGO_ENABLED=0 \
+    && sed -i '/"-Werror",/d' cmd/dist/build.c \
     && ./make.bash \
     && mkdir -p /app/bin \
     && tar -czf "/app/bin/{{ archive_bin }}" -C /app/src bin pkg src

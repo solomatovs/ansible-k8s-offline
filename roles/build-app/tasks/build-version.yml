@@ -1,6 +1,18 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/ansible/schemas/main/f/ansible-tasks.json
-- name: "set vars for containerd version"
-  include_vars: "build-version.yml"
+- name: "set vars"
+  set_fact:
+    local_src_dir: "{{ artifact_dir_src_local }}/{{ app_name }}-{{ build_version.version }}"
+    local_bin_dir: "{{ artifact_dir_bin_local }}/{{ app_name }}-{{ build_version.version }}"
+
+    remote_src_dir: "{{ artifact_dir_src_remote }}/{{ app_name }}-{{ build_version.version }}"
+    remote_bin_dir: "{{ artifact_dir_bin_remote }}/{{ app_name }}-{{ build_version.version }}"
+
+    archive_src: "{{ app_name }}-{{ build_version.version }}.tar.gz"
+    archive_bin: "{{ app_name }}-{{ build_version.version }}.tar.gz"
+
+    docker_container_name: "{{ app_name }}-{{ build_version.version }}"
+    docker_image_name: "{{ app_name }}"
+    docker_image_tag: "{{ build_version.version }}"
 
 - name: extract go version list
   set_fact:
@@ -13,8 +25,8 @@
 # установка переменной для предыдущего go bootstrap
 - name: set prev go bootstrap archive name
   set_fact:
-    go_bootstrap_dir: "{{ artifact_dir_bin_local }}/go-{{ go_bootstrap }}"
-    go_bootstrap_bin: "{{ 'go1.4-bootstrap-20171003.tar.gz' if go_bootstrap == '1.4' else 'go' + go_bootstrap + '-bootstrap.tar.gz' }}"
+    go_bootstrap_dir: "{{ artifact_dir_bin_local }}/{{ go_bootstrap }}"
+    go_bootstrap_bin: "{{ go_bootstrap }}-bootstrap.tar.gz"
 
 - name: "local src directory remove"
   file:
@@ -42,31 +54,30 @@
 
 - name: "git clone directory set"
   set_fact:
-    containerd_clone_dir: "{{ local_src_dir }}/src"
+    app_clone_dir: "{{ local_src_dir }}/src"
 
 - name: "git clone directory create"
   delegate_to: localhost
   file:
-      path: "{{ containerd_clone_dir }}"
+      path: "{{ app_clone_dir }}"
       state: absent
 
 - name: git clone
   delegate_to: localhost
   git:
-    repo: "{{ containerd_base_url }}"
-    dest: "{{ containerd_clone_dir }}"
-    version: "{{ build_version.version }}" # например: v3.5.12
-    depth: 1                                          # минимальный clone (хватает для tag)
+    repo: "{{ app_repo }}"
+    dest: "{{ app_clone_dir }}"
+    version: "{{ build_version.version }}"
+    depth: 1
     force: yes
     recursive: yes
 
 - name: "archive git clone directory"
   delegate_to: localhost
   archive:
-    path: "{{ containerd_clone_dir }}"
+    path: "{{ app_clone_dir }}"
     dest: "{{ local_src_dir }}/{{ archive_src }}"
     format: gz
-
 
 - name: "remote src directory remove"
   file:
@@ -90,7 +101,7 @@
     state: directory
     mode: '0755'
 
-- name: "copy containerd to remote"
+- name: "copy {{ app_name }} to remote"
   copy:
     src: "{{ local_src_dir }}/{{ archive_src }}"
     dest: "{{ remote_src_dir }}/{{ archive_src }}"
