@@ -1,0 +1,12 @@
+local_src_dir: "{{ artifact_dir_src_local }}/containerd-{{ containerd_build_version.version }}"
+local_bin_dir: "{{ artifact_dir_bin_local }}/containerd-{{ containerd_build_version.version }}"
+
+remote_src_dir: "{{ artifact_dir_src_remote }}/containerd-{{ containerd_build_version.version }}"
+remote_bin_dir: "{{ artifact_dir_bin_remote }}/containerd-{{ containerd_build_version.version }}"
+
+archive_src: "containerd-{{ containerd_build_version.version }}.tar.gz"
+archive_bin: "containerd-{{ containerd_build_version.version }}.tar.gz"
+
+docker_container_name: "containerd-{{ containerd_build_version.version }}"
+docker_image_name: "containerd"
+docker_image_tag: "{{ containerd_build_version.version }}"

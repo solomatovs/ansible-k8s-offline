@@ -5,5 +5,6 @@
   roles:
     - { role: build-go, tags: ['build-go'] }
     - { role: build-etcd, tags: ['build-etcd'] }
+    - { role: build-containerd, tags: ['build-containerd'] }
   vars_files:
     - ../group_vars/all.yml

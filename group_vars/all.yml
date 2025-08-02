@@ -42,3 +42,10 @@ etcd_version_tags:
     dockerfile: "Dockerfile-3.4.j2"
   - version: "v3.6.4"
     dockerfile: "Dockerfile-3.6.j2"
+
+# URL для скачивания исходников containerd
+containerd_base_url: https://github.com/containerd/containerd.git
+# Версии containerd которые нужно собрать
+containerd_version_tags:
+  - version: "v2.1.4"
+    dockerfile: "Dockerfile.j2"
