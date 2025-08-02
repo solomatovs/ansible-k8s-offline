@@ -1,0 +1,6 @@
+# Основной цикл - обработка каждой версии cni последовательно
+- name: loop cni build all versions
+  include_tasks: build-version.yml
+  loop: "{{ cni_version_tags }}"
+  loop_control:
+    loop_var: build_version

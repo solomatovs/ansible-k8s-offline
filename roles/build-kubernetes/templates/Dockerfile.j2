@@ -1,0 +1,32 @@
+FROM debian:bullseye-slim
+
+RUN apt-get update && apt-get install -y \
+    bash \
+    build-essential \
+    curl \
+    ca-certificates \
+    tar \
+    git \
+    rsync \
+&& rm -rf /var/lib/apt/lists/*
+
+# Копируем go bootstrap внутрь контейнера
+COPY {{ go_bootstrap_bin }} /usr/local/
+# Копируем исходники внутрь контейнера
+COPY {{ archive_src }} /app/src/
+
+# Распаковываем
+RUN  mkdir /usr/local/go \
+    && tar -xzf /usr/local/{{ go_bootstrap_bin }} -C /usr/local/go \
+    && tar -xzf /app/src/{{ archive_src }} -C /app/src --strip-components=1
+
+# Компилируем kubernetes
+WORKDIR /app/src
+
+RUN export GOROOT=/usr/local/go \
+    && export PATH=$PATH:/usr/local/go/bin \
+    && export CGO_ENABLED=0 \
+    && export GOFLAGS="-buildvcs=false" \
+    && export GOPROXY="{{ go_proxy_url }}" \
+    && make all \
+    && /bin/cp -rf _output/local/bin/linux/amd64 /app/bin

@@ -1,0 +1,12 @@
+local_src_dir: "{{ artifact_dir_src_local }}/kubernetes-{{ build_version.version }}"
+local_bin_dir: "{{ artifact_dir_bin_local }}/kubernetes-{{ build_version.version }}"
+
+remote_src_dir: "{{ artifact_dir_src_remote }}/kubernetes-{{ build_version.version }}"
+remote_bin_dir: "{{ artifact_dir_bin_remote }}/kubernetes-{{ build_version.version }}"
+
+archive_src: "kubernetes-{{ build_version.version }}.tar.gz"
+archive_bin: "kubernetes-{{ build_version.version }}.tar.gz"
+
+docker_container_name: "kubernetes-{{ build_version.version }}"
+docker_image_name: "kubernetes"
+docker_image_tag: "{{ build_version.version }}"

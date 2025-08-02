@@ -1,0 +1,140 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ansible/schemas/main/f/ansible-tasks.json
+- name: "set vars for cni version"
+  include_vars: "build-version.yml"
+
+- name: extract go version list
+  set_fact:
+    all_go_versions: "{{ go_versions | map(attribute='version') | list }}"
+
+- name: select go bootstrap version
+  set_fact:
+    go_bootstrap: "{{ build_version.go_version | default(all_go_versions[-1]) }}"
+
+# установка переменной для предыдущего go bootstrap
+- name: set prev go bootstrap archive name
+  set_fact:
+    go_bootstrap_dir: "{{ artifact_dir_bin_local }}/go-{{ go_bootstrap }}"
+    go_bootstrap_bin: "{{ 'go1.4-bootstrap-20171003.tar.gz' if go_bootstrap == '1.4' else 'go' + go_bootstrap + '-bootstrap.tar.gz' }}"
+
+- name: "local src directory remove"
+  file:
+    path: "{{ local_src_dir }}"
+    state: absent
+
+- name: "local src directory create"
+  delegate_to: localhost
+  file:
+    path: "{{ local_src_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: "local bin directory remove"
+  file:
+    path: "{{ local_bin_dir }}"
+    state: absent
+
+- name: "local bin directory create"
+  delegate_to: localhost
+  file:
+    path: "{{ local_bin_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: "git clone directory set"
+  set_fact:
+    cni_clone_dir: "{{ local_src_dir }}/src"
+
+- name: "git clone directory create"
+  delegate_to: localhost
+  file:
+      path: "{{ cni_clone_dir }}"
+      state: absent
+
+- name: git clone
+  delegate_to: localhost
+  git:
+    repo: "{{ cni_base_url }}"
+    dest: "{{ cni_clone_dir }}"
+    version: "{{ build_version.version }}" # например: v3.5.12
+    depth: 1                                          # минимальный clone (хватает для tag)
+    force: yes
+    recursive: yes
+
+- name: "archive git clone directory"
+  delegate_to: localhost
+  archive:
+    path: "{{ cni_clone_dir }}"
+    dest: "{{ local_src_dir }}/{{ archive_src }}"
+    format: gz
+
+
+- name: "remote src directory remove"
+  file:
+    path: "{{ remote_src_dir }}"
+    state: absent
+
+- name: "remote src directory create"
+  file:
+    path: "{{ remote_src_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: "remote bin directory remove"
+  file:
+    path: "{{ remote_bin_dir }}"
+    state: absent
+
+- name: "remote bin directory create"
+  file:
+    path: "{{ remote_bin_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: "copy cni to remote"
+  copy:
+    src: "{{ local_src_dir }}/{{ archive_src }}"
+    dest: "{{ remote_src_dir }}/{{ archive_src }}"
+
+- name: "copy go bootstrap to remote"
+  copy:
+    src: "{{ go_bootstrap_dir }}/{{ go_bootstrap_bin }}"
+    dest: "{{ remote_src_dir }}/{{ go_bootstrap_bin }}"
+
+- name: "create Dockerfile from template"
+  template:
+    src: "{{ build_version.dockerfile }}"
+    dest: "{{ remote_src_dir }}/Dockerfile"
+
+- name: "build Dockerfile"
+  command: >
+    docker build
+      --file "{{ remote_src_dir }}/Dockerfile"
+      --tag {{ docker_image_name }}:{{ docker_image_tag }}
+      "{{ remote_src_dir }}"
+
+- name: "remove existing container"
+  command: docker rm {{ docker_container_name }}
+  ignore_errors: true
+
+- name: "create container"
+  command: docker create --name {{ docker_container_name }} {{ docker_image_name }}:{{ docker_image_tag }}
+
+- name: "copy binaries from container"
+  command: docker cp {{ docker_container_name }}:/app/bin "{{ remote_bin_dir }}"
+
+- name: "remove existing container"
+  command: docker container rm {{ docker_container_name }}
+
+- name: "remove existing image"
+  command: docker image rm {{ docker_image_name }}:{{ docker_image_tag }}
+
+- name: "archive binaries"
+  command: tar czf {{ archive_bin }} -C "{{ remote_bin_dir }}/bin" .
+  args:
+    chdir: "{{ remote_bin_dir }}"
+
+- name: "copy archive to local"
+  fetch:
+    src: "{{ remote_bin_dir }}/{{ archive_bin }}"
+    dest: "{{ local_bin_dir }}/{{ archive_bin }}"
+    flat: true

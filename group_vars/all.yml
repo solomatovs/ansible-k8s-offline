@@ -49,3 +49,25 @@ containerd_base_url: https://github.com/containerd/containerd.git
 containerd_version_tags:
   - version: "v2.1.4"
     dockerfile: "Dockerfile.j2"
+
+# URL для скачивания исходников runc
+runc_base_url: https://github.com/opencontainers/runc.git
+# Версии runc которые нужно собрать
+runc_version_tags:
+  - version: "v1.3.0"
+    dockerfile: "Dockerfile.j2"
+
+# URL для скачивания исходников cni
+cni_base_url: https://github.com/containernetworking/plugins.git
+# Версии cni которые нужно собрать
+cni_version_tags:
+  - version: "v1.7.1"
+    dockerfile: "Dockerfile.j2"
+
+# URL для скачивания исходников kubernetes
+kubernetes_base_url: https://github.com/kubernetes/kubernetes.git
+# Версии kubernetes которые нужно собрать
+kubernetes_version_tags:
+  - version: "v1.33.3"
+    dockerfile: "Dockerfile.j2"
+    go_version: "1.22.6"

@@ -1,24 +1,6 @@
-# Подготовительный этап - создание директорий и загрузка архивов
-- name: extract go version list
-  set_fact:
-    all_go_versions: "{{ go_versions | map(attribute='version') | list }}"
-
-- name: select go bootstrap version
-  set_fact:
-    go_bootstrap: "{{ all_go_versions[-1] }}" # select latest version
-
-# установка переменной для предыдущего go bootstrap
-- name: set prev go bootstrap archive name
-  set_fact:
-    go_dir: "{{ artifact_dir_bin_local }}/go-{{ go_bootstrap }}"
-    go_bin: "{{ 'go1.4-bootstrap-20171003.tar.gz' if go_bootstrap == '1.4' else 'go' + go_bootstrap + '-bootstrap.tar.gz' }}"
-
 # Основной цикл - обработка каждой версии containerd последовательно
 - name: loop containerd build all versions
-  include_tasks: containerd-build-version.yml
+  include_tasks: build-version.yml
   loop: "{{ containerd_version_tags }}"
   loop_control:
-    loop_var: containerd_build_version
-  vars:
-    go_bootstrap_dir: "{{ go_dir }}"
-    go_bootstrap_bin: "{{ go_bin }}"
+    loop_var: build_version

@@ -1,0 +1,6 @@
+# Основной цикл - обработка каждой версии runc последовательно
+- name: loop runc build all versions
+  include_tasks: build-version.yml
+  loop: "{{ runc_version_tags }}"
+  loop_control:
+    loop_var: build_version
