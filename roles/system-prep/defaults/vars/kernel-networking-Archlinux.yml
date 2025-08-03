@@ -1,0 +1,29 @@
+sysctl_params:
+  # ipv4 forwarding (обязательно для kube-proxy)
+  - { name: 'net.ipv4.ip_forward', value: '1' }
+  # ipv6 forwarding (обязательно для kube-proxy)
+  - { name: 'net.ipv6.conf.all.forwarding', value: '1' }
+
+  # Bridge netfilter (для iptables работы с bridge трафиком)
+  - { name: "net.bridge.bridge-nf-call-iptables", value: "1" }
+  - { name: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
+  
+  # Настройки для производительности сети
+  - { name: "net.netfilter.nf_conntrack_max", value: "1000000" }
+  - { name: "net.core.netdev_max_backlog", value: "5000" }
+  - { name: "net.core.rmem_max", value: "134217728" }
+  - { name: "net.core.wmem_max", value: "134217728" }
+  
+  # TCP настройки
+  - { name: "net.ipv4.tcp_rmem", value: "4096 65536 134217728" }
+  - { name: "net.ipv4.tcp_wmem", value: "4096 65536 134217728" }
+  
+  # Защита от некоторых атак
+  - { name: "net.ipv4.conf.all.rp_filter", value: "1" }
+  - { name: "net.ipv4.conf.default.rp_filter", value: "1" }
+  
+  # Настройки для контейнеров
+  - { name: "net.ipv4.conf.all.accept_redirects", value: "0" }
+  - { name: "net.ipv4.conf.default.accept_redirects", value: "0" }
+  - { name: "net.ipv4.conf.all.secure_redirects", value: "0" }
+  - { name: "net.ipv4.conf.default.secure_redirects", value: "0" }

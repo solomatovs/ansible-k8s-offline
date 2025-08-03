@@ -1,0 +1,24 @@
+kernel_modules:
+  # Overlay файловая система (для containerd)
+  - overlay
+
+  # Bridge netfilter (для iptables с bridge)
+  - br_netfilter
+
+  # IP tables модули
+  - ip_tables
+  - iptable_filter
+  - iptable_nat
+  - iptable_mangle
+
+  # IPv6 поддержка
+  - ipv6
+
+  # VXLAN для некоторых CNI
+  - vxlan
+
+  # Network namespaces
+  - netlink_diag
+
+  # Cgroups v2 поддержка
+  - cgroup_bpf

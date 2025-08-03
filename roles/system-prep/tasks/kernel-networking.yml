@@ -1,0 +1,45 @@
+- name: "kernel networking logic"
+  tags: [networking]
+  block:
+    - name: networking load vars
+      include_tasks: include-vars.yml
+      vars:
+        var_prefix: "kernel-networking"
+
+    - name: ensure required vars
+      assert:
+        that:
+          - include_vars.sysctl_params is defined
+          - sysctl.sysctl_networking_conf is defined
+        fail_msg: "Required variables are not defined"
+
+    - name: display vars
+      debug:
+        msg: |
+          kernel_modules:
+          {{ include_vars.sysctl_params | to_nice_yaml(indent=2) }}
+
+          sysctl.sysctl_networking_conf
+          {{ sysctl.sysctl_networking_conf | to_nice_yaml(indent=2) }}
+
+    - name: networking settings apply
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_file: "/etc/sysctl.d/{{ sysctl.sysctl_networking_conf }}"
+        reload: yes
+      loop: "{{ include_vars.sysctl_params }}"
+
+    - name: networking parameters check exists
+      command: "sysctl -n {{ item.name }}"
+      register: sysctl_check_results
+      changed_when: false
+      loop: "{{ include_vars.sysctl_params }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: "networking parameters display"
+      debug:
+        msg: |
+          {{ sysctl_check_results.results | map(attribute='item') | to_nice_yaml(indent=2) }}

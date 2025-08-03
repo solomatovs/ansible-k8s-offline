@@ -69,3 +69,13 @@ apps:
       - version: "v1.33.3"
         dockerfile: "Dockerfile-kubernetes.j2"
         go_version: "go1.24.5"
+
+sysctl:
+  # путь к файлу sysctl.d для сетевых параметров (role system-prep/tasks/kernel-networking.yml)
+  # "/etc/sysctl.d/{{ sysctl.sysctl_networking_conf }}"
+  sysctl_networking_conf: "99-kubernetes-1-networking.conf"
+
+modules:
+  # путь к файлу modules-load.d для модулей ядра (role system-prep/tasks/kernel-modules.yml)
+  # /etc/modules-load.d/{{ modules.modules_load_conf }}
+  modules_load_conf: "kubernetes.conf"

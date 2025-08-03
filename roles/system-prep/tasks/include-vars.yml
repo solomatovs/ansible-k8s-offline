@@ -1,0 +1,35 @@
+# эта группа тасков используется для загрузки переменных в зависимости от ОС и версии
+# если переменные для конкретной ОС не найдены, то будут загружены переменные для семейства ОС
+# если и для семейства ОС не найдены переменные, то будут загружены общие переменные
+
+# путь к файлам с переменными должен быть следующим:
+# ./defaults/vars/kernel-vars-<os_distribution>-<os_version>.yml
+# ./defaults/vars/kernel-vars-<os_family>.yml
+# ./defaults/vars/kernel-vars-Generic.yml
+
+# словарь загружается в переменную include_vars, которая будет использоваться в других тасках
+
+- name: set path for kernel vars
+  set_fact:
+    vars_path: "defaults/vars"
+
+- name: "load {{ var_prefix }} os version vars"
+  include_vars:
+    file: "{{ vars_path }}/{{ var_prefix }}-{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+    name: include_vars
+  ignore_errors: true
+  register: os_version_vars
+
+- name: "load {{ var_prefix }} os family vars"
+  when: os_version_vars is failed
+  include_vars:
+    file: "{{ vars_path }}/{{ var_prefix }}-{{ ansible_os_family }}.yml"
+    name: include_vars
+  ignore_errors: true
+  register: family_vars
+
+- name: "load generic {{ var_prefix }} vars"
+  when: os_version_vars is failed and family_vars is failed
+  include_vars:
+    file: "{{ vars_path }}/{{ var_prefix }}-Generic.yml"
+    name: include_vars

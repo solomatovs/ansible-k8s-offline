@@ -1,0 +1,110 @@
+# Загрузка необходимых установок сети для Kubernetes
+- name: "kernel modules logic"
+  tags: [modules]
+  block:
+    - name: kernel modules load vars
+      include_tasks: include-vars.yml
+      vars:
+        var_prefix: "kernel-modules"
+
+    - name: ensure required vars
+      assert:
+        that:
+          - include_vars.kernel_modules is defined
+          - modules.modules_load_conf is defined
+        fail_msg: "Required variables are not defined"
+
+    - name: display vars
+      debug:
+        msg: |
+          kernel_modules:
+          {{ include_vars.kernel_modules | to_nice_yaml(indent=2) }}
+
+          modules_load_conf:
+          {{ modules.modules_load_conf | to_nice_yaml(indent=2) }}
+
+    # По очереди вызывает modprobe <module> для каждого модуля в списке.
+    - name: kernel modules load apply
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      register: module_load_result
+      # не прерывать выполнение
+      # модуль может быть встроен в ядро, поэтому не прерываем выполнение
+      # проверим все загруженные модули в конце
+      failed_when: false
+      loop: "{{ include_vars.kernel_modules }}"
+
+    - name: extract successfully loaded kernel modules
+      changed_when: false
+      set_fact:
+        # извлекаем только те модули, которые были успешно загружены
+        # если module_load_result.results[*].rc отсутствует, то модуль был успешно загружен
+        # если присутствует, то модуль не был загружен 
+        successfully_loaded_modules: >-
+          {{
+            module_load_result.results
+            | rejectattr('rc', 'defined')
+            | map(attribute='item')
+            | list
+          }}
+    
+    # Из модулей, по которым успешно пройдена команда modprobe <module_name> составляю список который кладу в файл "/etc/modules-load.d/{{ modules.modules_load_conf }}"
+    # если команда выполнилась успешно значит эти модули существуют и могут быть загружены при загрузке системы
+    - name: kernel modules flush configuration
+      copy:
+        content: |
+          # Kubernetes required modules
+          {{ successfully_loaded_modules | join('\n') }}
+        dest: "/etc/modules-load.d/{{ modules.modules_load_conf }}"
+        mode: '0644'
+        backup: yes
+
+    # составляю отдельный список модулей, которые не удалось загрузить
+    # это модули, которые либо не существуют в системе, либо скомпилированы с ядром системы и не требуют отдельной подгрузки
+    - name: get list of unresolved (not loaded or not builtin) modules
+      set_fact:
+        unresolved_modules: >-
+          {{
+            include_vars.kernel_modules
+            | difference(successfully_loaded_modules)
+          }}
+
+    # вытаскиваю список модулей, которые встроены в ядро
+    - name: read kernel config
+      changed_when: false
+      command: zcat /proc/config.gz
+      register: kernel_config
+    
+    # проверяю, встроен ли модуль в ядро
+    # встроенный модуль имеет в конфиге строку вида "CONFIG_<module_name>=y"
+    # если модуль встроен, то он не должен быть в списке kernel_modules_status
+    - name: check if module is builtin
+      changed_when: false
+      set_fact:
+        kernel_modules_status: >-
+          {{
+            kernel_modules_status | default({}) | combine({
+              item: (
+                ('CONFIG_' + item.upper() | regex_replace('-', '_') + '=y') in kernel_config.stdout
+              )
+            })
+          }}
+      loop: "{{ unresolved_modules }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # если из unresolved_modules (незагруженных модулей) вычесть kernel_modules_status (которые встроены в ядро)
+    # то останутся только те модули которых вообще нет в системе
+    # это является проблемой, которую нужно обработать вручную
+    # нужно установить необходимые модули ядра, либо скомпилировать ядро вместе с ними
+    # однако важно, что бы абсолютно все модули из списка include_vars.kernel_modules
+    # в итоге были в системе, иначе kubernetes будет работать некорректно
+    - name: fail if module is neither builtin nor available via modprobe
+      fail:
+        msg: "Kernel module '{{ item }}' is neither builtin nor loadable via modprobe"
+      when: 
+        - not kernel_modules_status[item]
+      loop: "{{ unresolved_modules }}"
+      loop_control:
+        label: "{{ item }}"

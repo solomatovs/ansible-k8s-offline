@@ -1,0 +1,19 @@
+# установка runc, cni, containerd в строгой последовательности
+- name: system prepare
+  debug:
+    msg: "Preparing the system for Kubernetes deployment"
+
+- name: swap disable
+  include_tasks:
+    file: swap-disable.yml
+  tags: [swap]
+
+- name: kernel networking
+  include_tasks:
+    file: kernel-networking.yml
+  tags: [networking]
+
+- name: kernel modules
+  include_tasks:
+    file: kernel-modules.yml
+  tags: [modules]

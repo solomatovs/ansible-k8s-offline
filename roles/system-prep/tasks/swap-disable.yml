@@ -1,0 +1,36 @@
+# Отключение swap (обязательное требование Kubernetes)
+- name: "kernel modules logic"
+  tags: [swap]
+  block:
+    - name: check if swap is disabled
+      command: swapon --show
+      register: swap_status
+      failed_when: false
+      changed_when: false
+
+    - name: display current swap status
+      debug:
+        msg: "Current swap status: {{ swap_status.stdout if swap_status.stdout else 'no swap active'}}"
+
+    - name: disable swap if it is enabled
+      command: swapoff -a
+      when: swap_status.stdout != ""
+      register: swap_off_result
+
+    - name: remove swap entry from fstab
+      lineinfile:
+        path: /etc/fstab
+        regexp: '.*swap.*'
+        state: absent
+        backup: yes
+      register: fstab_update_result
+
+    - name: check if swap is disabled after changes
+      command: swapon --show
+      register: final_swap_status
+      failed_when: final_swap_status.stdout != ""
+      changed_when: false
+
+    - name: confirm swap is disabled
+      debug:
+        msg: "Swap successfully disabled. Current status: {{ final_swap_status.stdout if final_swap_status.stdout else 'no swap active'}}"

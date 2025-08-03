@@ -8,7 +8,12 @@
     - ../group_vars/deploy.yml
 
   tasks:
-    - name: container runtime install
+    - name: system prepare
       include_role:
-        name: container-runtime
-      tags: [runc, containerd, cni]
+        name: system-prep
+      tags: [system]
+
+    # - name: container runtime install
+    #   include_role:
+    #     name: container-runtime
+    #   tags: [runc, containerd, cni]
