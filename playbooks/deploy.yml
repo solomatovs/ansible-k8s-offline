@@ -1,0 +1,14 @@
+- name: deploy kubernetes cluster
+  hosts: k8s
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - ../group_vars/all.yml
+    - ../group_vars/deploy.yml
+
+  tasks:
+    - name: container runtime install
+      include_role:
+        name: container-runtime
+      tags: [runc, containerd, cni]

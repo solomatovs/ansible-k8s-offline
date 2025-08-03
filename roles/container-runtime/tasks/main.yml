@@ -1,0 +1,4 @@
+# установка runc, cni, containerd в строгой последовательности
+- name: container runtime install
+  debug:
+    msg: "Installing container runtime components"

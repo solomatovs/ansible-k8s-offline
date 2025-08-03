@@ -14,7 +14,7 @@ all:
           ansible_host: <your_hostname_or_ip>
           ansible_python_interpreter: /usr/bin/python3
 
-    target:
+    k8s:
       children:
         masters:
           hosts:
