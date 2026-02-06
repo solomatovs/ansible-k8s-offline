@@ -1,0 +1,14 @@
+# playbooks/build.yml
+- name: build src
+  hosts: docker_build
+  gather_facts: false
+
+  tasks:
+    - name: build go
+      include_role:
+        name: build-go
+      when: build_app == 'all' or build_app == 'go'
+      vars:
+        go_versions: "{{ go.versions }}"
+        go_repo: "{{ go.repo }}"
+        go_proxy_url: "{{ go.proxy_url }}"
