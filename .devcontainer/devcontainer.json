@@ -5,16 +5,17 @@
 
   "mounts": [
     "source=${localWorkspaceFolder}/.git,target=${containerWorkspaceFolder}/.git,type=bind",
+    "source=${localWorkspaceFolder}/.vscode,target=${containerWorkspaceFolder}/.vscode,type=bind",
     "source=${localWorkspaceFolder}/.devcontainer,target=${containerWorkspaceFolder}/.devcontainer,type=bind",
     "source=${localWorkspaceFolder}/ansible,target=${containerWorkspaceFolder}/ansible,type=bind",
-    "source=${localWorkspaceFolder}/README.md,target=${containerWorkspaceFolder}/README.md,type=bind"
+    "source=${localWorkspaceFolder}/README.md,target=${containerWorkspaceFolder}/README.md,type=bind",
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind"
   ],
-  "postCreateCommand": "export DEBIAN_FRONTEND=noninteractive && apt update && apt -y install net-tools dnsutils telnet lsof make && python3 -m venv ${containerWorkspaceFolder}/.venv && /bin/bash -c 'source ${containerWorkspaceFolder}/.venv/bin/activate && pip3 install ansible'",
+  "postCreateCommand": "export DEBIAN_FRONTEND=noninteractive && apt update && apt -y install net-tools dnsutils telnet lsof make buildah && mkdir -p /etc/containers && echo '{\"default\":[{\"type\":\"insecureAcceptAnything\"}]}' > /etc/containers/policy.json && printf '[storage]\ndriver = \"vfs\"\n' > /etc/containers/storage.conf && python3 -m venv ${containerWorkspaceFolder}/.venv && /bin/bash -c 'source ${containerWorkspaceFolder}/.venv/bin/activate && pip3 install ansible'",
   "waitFor": "postCreateCommand",
   "shutdownAction": "stopContainer",
-
   "containerEnv": {
-
+    "LC_ALL": "C.UTF-8"
   },
 
   "runArgs": [

@@ -1,0 +1,37 @@
+# локальная директория для артефактов
+artifact_dir_local:     "./artifacts/local"
+# директория для загрузки исходников
+artifact_dir_src_local: "{{ artifact_dir_local }}/src"
+# директория для загрузки артефактов сборки
+artifact_dir_bin_local: "{{ artifact_dir_local }}/bin"
+
+# удаленная директория для артефактов
+artifact_dir_remote:    "./artifacts/remote"
+# директория для загрузки исходников
+artifact_dir_src_remote: "{{ artifact_dir_remote }}/src"
+# директория для загрузки артефактов сборки
+artifact_dir_bin_remote: "{{ artifact_dir_remote }}/bin"
+
+# настройки для сборки go
+
+# Версии go которые нужно собрать
+# обрати внимание, что go компиляторы собираются последовательно один за другим
+# так как каждый следующий компилятор использует предыдущий для сборки
+# в итоге для сборки компонентов kubernates используется последний go компилятор
+# после добавления новой версии go компилятора в этот список
+# все компоненты kubernetes будут собираться этим новым компилятором
+go_versions:
+    - version: "go1.4"
+      dockerfile: "Dockerfile-1.4.j2"
+    - version: "go1.17.13"
+      dockerfile: "Dockerfile.j2"
+    - version: "go1.20.6"
+      dockerfile: "Dockerfile.j2"
+    - version: "go1.22.6"
+      dockerfile: "Dockerfile.j2"
+    - version: "go1.24.5"
+      dockerfile: "Dockerfile.j2"
+
+# url для скачивания исходников go
+go_repo:       "https://github.com/golang/go.git"
+go_proxy_url:  "https://proxy.golang.org"

@@ -1,71 +1,71 @@
-# локальная директория для артефактов
-artifact_dir_local:     "./artifacts"
-# директория для загрузки исходников
-artifact_dir_src_local: "{{ artifact_dir_local }}/src"
-# директория для загрузки артефактов сборки
-artifact_dir_bin_local: "{{ artifact_dir_local }}/bin"
+# # локальная директория для артефактов
+# artifact_dir_local:     "./artifacts"
+# # директория для загрузки исходников
+# artifact_dir_src_local: "{{ artifact_dir_local }}/src"
+# # директория для загрузки артефактов сборки
+# artifact_dir_bin_local: "{{ artifact_dir_local }}/bin"
 
-# удаленная директория для артефактов
-artifact_dir_remote:    "/tmp/ansible"
-# директория для загрузки исходников
-artifact_dir_src_remote: "{{ artifact_dir_remote }}/src"
-# директория для загрузки артефактов сборки
-artifact_dir_bin_remote: "{{ artifact_dir_remote }}/bin"
+# # удаленная директория для артефактов
+# artifact_dir_remote:    "/tmp/ansible"
+# # директория для загрузки исходников
+# artifact_dir_src_remote: "{{ artifact_dir_remote }}/src"
+# # директория для загрузки артефактов сборки
+# artifact_dir_bin_remote: "{{ artifact_dir_remote }}/bin"
 
-# настройки для сборки go
-go:
-  # url для скачивания исходников go
-  repo:       "https://github.com/golang/go.git"
-  proxy_url:  "https://proxy.golang.org"
+# # настройки для сборки go
+# go:
+#   # url для скачивания исходников go
+#   repo:       "https://github.com/golang/go.git"
+#   proxy_url:  "https://proxy.golang.org"
 
-  # Версии go которые нужно собрать
-  # обрати внимание, что go компиляторы собираются последовательно один за другим
-  # так как каждый следующий компилятор использует предыдущий для сборки
-  # в итоге для сборки компонентов kubernates используется последний go компилятор
-  # после добавления новой версии go компилятора в этот список
-  # все компоненты kubernetes будут собираться этим новым компилятором
-  versions:
-    - version: "go1.4"
-      dockerfile: "Dockerfile-1.4.j2"
-    - version: "go1.17.13"
-      dockerfile: "Dockerfile.j2"
-    - version: "go1.20.6"
-      dockerfile: "Dockerfile.j2"
-    - version: "go1.22.6"
-      dockerfile: "Dockerfile.j2"
-    - version: "go1.24.5"
-      dockerfile: "Dockerfile.j2"
+#   # Версии go которые нужно собрать
+#   # обрати внимание, что go компиляторы собираются последовательно один за другим
+#   # так как каждый следующий компилятор использует предыдущий для сборки
+#   # в итоге для сборки компонентов kubernates используется последний go компилятор
+#   # после добавления новой версии go компилятора в этот список
+#   # все компоненты kubernetes будут собираться этим новым компилятором
+#   versions:
+#     - version: "go1.4"
+#       dockerfile: "Dockerfile-1.4.j2"
+#     - version: "go1.17.13"
+#       dockerfile: "Dockerfile.j2"
+#     - version: "go1.20.6"
+#       dockerfile: "Dockerfile.j2"
+#     - version: "go1.22.6"
+#       dockerfile: "Dockerfile.j2"
+#     - version: "go1.24.5"
+#       dockerfile: "Dockerfile.j2"
 
-apps:
-  - name: runc
-    repo: "https://github.com/opencontainers/runc.git"
-    versions:
-      - version: "v1.3.0"
-        dockerfile: "Dockerfile-runc.j2"
+# apps:
+#   - name: runc
+#     repo: "https://github.com/opencontainers/runc.git"
+#     versions:
+#       - version: "v1.3.0"
+#         dockerfile: "Dockerfile-runc.j2"
 
-  - name: cni
-    repo: "https://github.com/containernetworking/plugins.git"
-    versions:
-      - version: "v1.7.1"
-        dockerfile: "Dockerfile-cni.j2"
+#   - name: cni
+#     repo: "https://github.com/containernetworking/plugins.git"
+#     versions:
+#       - version: "v1.7.1"
+#         dockerfile: "Dockerfile-cni.j2"
 
-  - name: containerd
-    repo: https://github.com/containerd/containerd.git
-    versions:
-      - version: "v2.1.4"
-        dockerfile: "Dockerfile-containerd.j2"
+#   - name: containerd
+#     repo: https://github.com/containerd/containerd.git
+#     versions:
+#       - version: "v2.1.4"
+#         dockerfile: "Dockerfile-containerd.j2"
 
-  - name: etcd
-    repo: https://github.com/etcd-io/etcd.git
-    versions:
-      - version: "v3.4.9"
-        dockerfile: "Dockerfile-etcd-3.4.j2"
-      - version: "v3.6.4"
-        dockerfile: "Dockerfile-etcd-3.6.j2"
+#   - name: etcd
+#     repo: https://github.com/etcd-io/etcd.git
+#     versions:
+#       - version: "v3.4.9"
+#         dockerfile: "Dockerfile-etcd-3.4.j2"
+#       - version: "v3.6.4"
+#         dockerfile: "Dockerfile-etcd-3.6.j2"
   
-  - name: kubernetes
-    repo: https://github.com/kubernetes/kubernetes.git
-    versions:
-      - version: "v1.33.3"
-        dockerfile: "Dockerfile-kubernetes.j2"
-        go_version: "go1.22.6"
+#   - name: kubernetes
+#     repo: https://github.com/kubernetes/kubernetes.git
+#     versions:
+#       - version: "v1.33.3"
+#         dockerfile: "Dockerfile-kubernetes.j2"
+#         go_version: "go1.22.6"

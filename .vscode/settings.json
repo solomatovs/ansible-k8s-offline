@@ -1,0 +1,34 @@
+{
+  "python-env.workspaceSearchPaths": ["${workspaceFolder}/.venv"],
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.useEnvironmentsExtension": false,
+  "python-envs.pythonProjects": [
+    {
+      "path": "${workspaceFolder}/.venv",
+      "envManager": "ms-python.python:venv",
+      "packageManager": "ms-python.python:pip"
+    }
+  ],
+  "python.envFile": "${workspaceFolder}/.devcontainer/.env",
+  "python.terminal.useEnvFile": true,
+  "python.terminal.activateEnvironment": true,
+  "python.terminal.activateEnvInCurrentTerminal": true,
+  "python.analysis.extraPaths": ["${workspaceFolder}/ansible"],
+  "python.analysis.exclude": ["${workspaceFolder}/ansible/tmp"],
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.typeCheckingMode": "basic",
+  "editor.formatOnSave": true,
+  "commentTranslate.targetLanguage": "ru",
+
+  // включаем ruff
+  "ruff.enable": true,
+  "ruff.lint.enable": true,
+
+  // Автоисправление при сохранении
+  "editor.codeActionsOnSave": {
+    "source.fixAll.ruff": "always"
+  },
+  "python.testing.pytestEnabled": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "claudeCode.useTerminal": true
+}

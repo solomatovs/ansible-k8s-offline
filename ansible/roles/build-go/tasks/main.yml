@@ -1,3 +1,14 @@
+- name: check required variables
+  assert:
+    that:
+      - go_versions is defined
+      - go_repo is defined
+      - go_proxy_url is defined
+      - artifact_dir_src_local is defined
+      - artifact_dir_bin_local is defined
+      - artifact_dir_src_remote is defined
+      - artifact_dir_bin_remote is defined
+
 # Основной цикл - обработка каждой версии Go последовательно
 - name: loop go build all versions
   include_tasks: build-version.yml

@@ -1,5 +1,4 @@
-# playbooks/build.yml
-- name: build src
+- name: build application from source
   hosts: docker_build
   gather_facts: false
   

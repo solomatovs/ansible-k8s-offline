@@ -1,5 +1,19 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/ansible/schemas/main/f/ansible-tasks.json
-- name: "set vars"
+- name: check required external vars
+  assert:
+    that:
+      - go_versions is defined
+      - go_repo is defined
+      - go_proxy_url is defined
+      - build_version is defined
+      - build_version.version is defined
+      - build_version.dockerfile is defined
+      - artifact_dir_src_local is defined
+      - artifact_dir_bin_local is defined
+      - artifact_dir_src_remote is defined
+      - artifact_dir_bin_remote is defined
+
+- name: "set local vars"
   set_fact:
     local_src_dir: "{{ artifact_dir_src_local }}/{{ build_version.version }}"
     local_bin_dir: "{{ artifact_dir_bin_local }}/{{ build_version.version }}"
@@ -115,6 +129,8 @@
   copy:
     src: "{{ go_bootstrap_dir }}/{{ go_bootstrap_bin }}"
     dest: "{{ remote_src_dir }}/{{ go_bootstrap_bin }}"
+
+- debug: "msg={{ remote_src_dir }}/Dockerfile"
 
 - name: "create Dockerfile from template"
   template:
