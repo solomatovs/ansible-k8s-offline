@@ -11,15 +11,18 @@
     "source=${localWorkspaceFolder}/README.md,target=${containerWorkspaceFolder}/README.md,type=bind",
     "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind"
   ],
-  "postCreateCommand": "export DEBIAN_FRONTEND=noninteractive && apt update && apt -y install net-tools dnsutils telnet lsof make buildah && mkdir -p /etc/containers && echo '{\"default\":[{\"type\":\"insecureAcceptAnything\"}]}' > /etc/containers/policy.json && printf '[storage]\ndriver = \"vfs\"\n' > /etc/containers/storage.conf && python3 -m venv ${containerWorkspaceFolder}/.venv && /bin/bash -c 'source ${containerWorkspaceFolder}/.venv/bin/activate && pip3 install ansible'",
+  "postCreateCommand": "export DEBIAN_FRONTEND=noninteractive && apt update && apt -y install net-tools dnsutils telnet lsof make buildah && mkdir -p /etc/containers && cp ${containerWorkspaceFolder}/.devcontainer/buildah/policy.json /etc/containers/policy.json && cp ${containerWorkspaceFolder}/.devcontainer/buildah/storage.conf /etc/containers/storage.conf && python3 -m venv ${containerWorkspaceFolder}/.venv && /bin/bash -c 'source ${containerWorkspaceFolder}/.venv/bin/activate && pip3 install ansible'",
   "waitFor": "postCreateCommand",
   "shutdownAction": "stopContainer",
   "containerEnv": {
-    "LC_ALL": "C.UTF-8"
+    "LC_ALL": "C.UTF-8",
+    "BUILDAH_ISOLATION": "chroot",
+    "_BUILDAH_STARTED_IN_USERNS": "1"
   },
 
   "runArgs": [
-    "--name", "ansible"
+    "--name", "ansible",
+    "--security-opt", "seccomp=.devcontainer/buildah/seccomp.json"
   ],
   "forwardPorts": [8080],
   "portsAttributes": {

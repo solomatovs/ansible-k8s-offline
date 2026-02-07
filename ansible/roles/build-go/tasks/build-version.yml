@@ -139,26 +139,34 @@
 
 - name: "build Dockerfile"
   command: >
-    docker build
+    buildah bud
+      --isolation chroot
       --file "{{ remote_src_dir }}/Dockerfile"
       --tag {{ docker_image_name }}:{{ docker_image_tag }}
       "{{ remote_src_dir }}"
 
 - name: "remove existing container"
-  command: docker rm {{ docker_container_name }}
+  command: buildah rm {{ docker_container_name }}
   ignore_errors: true
 
 - name: "create container"
-  command: docker create --name {{ docker_container_name }} {{ docker_image_name }}:{{ docker_image_tag }}
+  command: buildah from --isolation chroot --name {{ docker_container_name }} {{ docker_image_name }}:{{ docker_image_tag }}
+
+- name: "mount container"
+  command: buildah mount {{ docker_container_name }}
+  register: mount_result
 
 - name: "copy bin from container"
-  command: docker cp {{ docker_container_name }}:"/app/bin/{{ archive_bin }}" "{{ remote_bin_dir }}"
+  command: cp "{{ mount_result.stdout }}/app/bin/{{ archive_bin }}" "{{ remote_bin_dir }}"
+
+- name: "unmount container"
+  command: buildah unmount {{ docker_container_name }}
 
 - name: "remove existing container"
-  command: docker container rm {{ docker_container_name }}
+  command: buildah rm {{ docker_container_name }}
 
 - name: "remove existing image"
-  command: docker image rm {{ docker_image_name }}:{{ docker_image_tag }}
+  command: buildah rmi {{ docker_image_name }}:{{ docker_image_tag }}
 
 - name: "copy archive to local"
   fetch:
