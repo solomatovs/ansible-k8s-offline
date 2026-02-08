@@ -13,7 +13,11 @@
     "source=${localWorkspaceFolder}/.devcontainer/buildah/passwd,target=/etc/passwd,type=bind",
     "source=${localWorkspaceFolder}/.devcontainer/buildah/group,target=/etc/group,type=bind",
     "source=${localWorkspaceFolder}/.devcontainer/buildah/subuid,target=/etc/subuid,type=bind",
-    "source=${localWorkspaceFolder}/.devcontainer/buildah/subgid,target=/etc/subgid,type=bind"
+    "source=${localWorkspaceFolder}/.devcontainer/buildah/subgid,target=/etc/subgid,type=bind",
+    // buildah image storage — именованный том, переживает пересоздание контейнера
+    "source=buildah-storage,target=/home/.local/share/containers,type=volume",
+    // артефакты сборки (исходники и выходные бинарники)
+    "source=artifacts,target=/home/.local/artifacts,type=volume"
   ],
   "containerUser": "1001:1001",
   "updateRemoteUserUID": false,
@@ -29,8 +33,8 @@
 
   "hostRequirements": {
     "cpus": 1,
-    "memory": "2gb",
-    "storage": "2gb"
+    "memory": "4gb",
+    "storage": "4gb"
   },
 
   "customizations": {

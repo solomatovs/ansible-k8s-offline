@@ -37,7 +37,8 @@ RUN export DEBIAN_FRONTEND=noninteractive \
         buildah \
         libcap2-bin \
         ca-certificates \
-        strace \
+        make \
+        curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Конфигурация buildah, права доступа
@@ -100,8 +101,6 @@ chmod u-s /usr/bin/newuidmap /usr/bin/newgidmap
 : > /etc/subuid
 : > /etc/subgid
 SCRIPT
-
-VOLUME /var/lib/containers
 
 ENV HOME=/home
 ENV LANG=C.UTF-8
