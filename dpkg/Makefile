@@ -1,5 +1,6 @@
 IMAGE        := dpkg-rootless:local
 BASE_IMAGE   := localhost/astra-linux:2.12
+ARTIFACTS_DIR := artifacts
 
 DPKG_VERSION := 1.23.5
 DPKG_URL     := http://deb.debian.org/debian/pool/main/d/dpkg/dpkg_$(DPKG_VERSION).tar.xz
@@ -10,13 +11,23 @@ LIBMD_URL     := https://archive.hadrons.org/software/libmd/libmd-$(LIBMD_VERSIO
 BUILD_ARGS := \
 	--build-arg BASE_IMAGE=$(BASE_IMAGE) \
 	--build-arg DPKG_VERSION=$(DPKG_VERSION) \
-	--build-arg DPKG_URL=$(DPKG_URL) \
-	--build-arg LIBMD_VERSION=$(LIBMD_VERSION) \
-	--build-arg LIBMD_URL=$(LIBMD_URL)
+	--build-arg LIBMD_VERSION=$(LIBMD_VERSION)
 
-.PHONY: build test shell clean
+.PHONY: build download test shell clean
 
-build:
+# --- Скачивание исходников (требует интернет) ---
+download: $(ARTIFACTS_DIR)/dpkg_$(DPKG_VERSION).tar.xz $(ARTIFACTS_DIR)/libmd-$(LIBMD_VERSION).tar.xz
+
+$(ARTIFACTS_DIR)/dpkg_$(DPKG_VERSION).tar.xz:
+	mkdir -p $(ARTIFACTS_DIR)
+	curl -fSL -o $@ $(DPKG_URL)
+
+$(ARTIFACTS_DIR)/libmd-$(LIBMD_VERSION).tar.xz:
+	mkdir -p $(ARTIFACTS_DIR)
+	curl -fSL -o $@ $(LIBMD_URL)
+
+# --- Сборка (работает оффлайн) ---
+build: $(ARTIFACTS_DIR)/dpkg_$(DPKG_VERSION).tar.xz $(ARTIFACTS_DIR)/libmd-$(LIBMD_VERSION).tar.xz
 	buildah bud $(BUILD_ARGS) -t $(IMAGE) .
 
 test: build

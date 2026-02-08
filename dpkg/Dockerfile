@@ -4,19 +4,17 @@
 # Использование: COPY --from=dpkg-rootless:local /out /
 
 ARG BASE_IMAGE=localhost/astra-linux:2.12
-FROM ${BASE_IMAGE}
+
+FROM ${BASE_IMAGE} AS builder
 
 ARG DPKG_VERSION=1.23.5
-ARG DPKG_URL=http://deb.debian.org/debian/pool/main/d/dpkg/dpkg_${DPKG_VERSION}.tar.xz
 ARG LIBMD_VERSION=1.1.0
-ARG LIBMD_URL=https://archive.hadrons.org/software/libmd/libmd-${LIBMD_VERSION}.tar.xz
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+RUN apt-get update \
     && apt-get install -y \
         build-essential \
-        wget \
         xz-utils \
         pkg-config \
         libbz2-dev \
@@ -24,21 +22,22 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
         libzstd-dev \
         # libmd-dev — отсутствует в Astra Linux, собираем из исходников ниже
         perl \
-        ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
+# Копируем предварительно скачанные артефакты (make download)
+COPY artifacts/libmd-${LIBMD_VERSION}.tar.xz /build/
+COPY artifacts/dpkg_${DPKG_VERSION}.tar.xz /build/
+
 # Сборка libmd из исходников (static-only: нужна только libmd.a)
-RUN wget ${LIBMD_URL} \
- && tar -xf libmd-${LIBMD_VERSION}.tar.xz \
+RUN tar -xf libmd-${LIBMD_VERSION}.tar.xz \
  && cd libmd-${LIBMD_VERSION} \
  && ./configure --prefix=/usr --enable-static --disable-shared \
  && make -j$(nproc) \
  && make install
 
-RUN wget ${DPKG_URL} \
- && tar -xf dpkg_${DPKG_VERSION}.tar.xz
+RUN tar -xf dpkg_${DPKG_VERSION}.tar.xz
 
 # Удаляем все .so для зависимостей — линкер найдёт только .a
 # (после распаковки tar.xz, т.к. tar нужна liblzma.so для xz-декомпрессии)
@@ -93,3 +92,7 @@ RUN make DESTDIR=/out install \
           /out/usr/bin/dpkg-split \
           /out/usr/bin/dpkg-statoverride \
           /out/usr/bin/dpkg-trigger
+
+# Финальный образ — только результат сборки, без build-essential и исходников.
+FROM ${BASE_IMAGE}
+COPY --from=builder /out /out
