@@ -1,0 +1,51 @@
+{
+  "name": "buildah-rootless",
+
+  "build": {
+    "dockerfile": "${localWorkspaceFolder}/buildah/Dockerfile",
+    "context": "${localWorkspaceFolder}/buildah"
+  },
+
+  "mounts": [
+    "source=${localWorkspaceFolder}/.devcontainer/buildah/passwd,target=/var/lib/nss_wrapper/passwd,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/buildah/group,target=/var/lib/nss_wrapper/group,type=bind",
+
+    // "source=${localWorkspaceFolder}/.devcontainer/buildah/passwd,target=/etc/passwd,type=bind",
+    // "source=${localWorkspaceFolder}/.devcontainer/buildah/group,target=/etc/group,type=bind",
+    // "source=${localWorkspaceFolder}/.devcontainer/buildah/subgid,target=/etc/subgid,type=bind",
+    // "source=${localWorkspaceFolder}/.devcontainer/buildah/subuid,target=/etc/subuid,type=bind"
+  ],
+  // "updateRemoteUserUID": false,
+  // "containerUser": "build",
+  "containerUser": "1001:1001",
+  // "remoteUser": "123456",
+  "updateRemoteUserUID": false,
+
+  "runArgs": [
+    "--cap-add",
+    "SYS_PTRACE",
+    "--security-opt",
+    "seccomp=.devcontainer/buildah/seccomp.json"
+  ],
+
+  "hostRequirements": {
+    "cpus": 1,
+    "memory": "2gb",
+    "storage": "2gb"
+  },
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "sh": {
+            "path": "/bin/bash",
+            "args": ["-l"]
+          }
+        }
+      },
+      "extensions": ["dracula-theme.theme-dracula"]
+    }
+  }
+}
