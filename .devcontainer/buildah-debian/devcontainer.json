@@ -12,6 +12,8 @@
     "source=${localWorkspaceFolder}/.devcontainer/buildah-debian/group,target=/etc/group,type=bind",
     "source=${localWorkspaceFolder}/.devcontainer/buildah-debian/subuid,target=/etc/subuid,type=bind",
     "source=${localWorkspaceFolder}/.devcontainer/buildah-debian/subgid,target=/etc/subgid,type=bind",
+    // buildah registries.conf — localhost первый в поиске, позволяет не писать localhost/ в именах образов
+    "source=${localWorkspaceFolder}/.devcontainer/buildah-debian/registries.conf,target=/etc/containers/registries.conf,type=bind",
     // это нужно для постоянного подключения claude code внутрь devcontainer
     "source=${localEnv:HOME}/.claude,target=/home/.claude,type=bind",
     // buildah image storage — именованный том, переживает пересоздание контейнера
