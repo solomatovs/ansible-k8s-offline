@@ -1,0 +1,52 @@
+{
+  "name": "buildah-debian-rootless",
+
+  "build": {
+    "dockerfile": "${localWorkspaceFolder}/buildah-debian/Dockerfile",
+    "context": "${localWorkspaceFolder}/buildah-debian"
+  },
+
+  "mounts": [
+    // passwd, group, subuid, subgid
+    "source=${localWorkspaceFolder}/.devcontainer/buildah-debian/passwd,target=/etc/passwd,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/buildah-debian/group,target=/etc/group,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/buildah-debian/subuid,target=/etc/subuid,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/buildah-debian/subgid,target=/etc/subgid,type=bind",
+    // это нужно для постоянного подключения claude code внутрь devcontainer
+    "source=${localEnv:HOME}/.claude,target=/home/.claude,type=bind",
+    // buildah image storage — именованный том, переживает пересоздание контейнера
+    "source=${localWorkspaceFolder}/.buildah-storage,target=/home/.local/share/containers,type=bind",
+  ],
+  "containerUser": "1000:984",
+  "updateRemoteUserUID": false,
+
+  "runArgs": [
+    // DISABLED: CAP_SYS_PTRACE — only needed for debugging (strace/gdb).
+    // Re-enable together with ptrace syscall in seccomp.json if debugging is needed
+    "--cap-add",
+    "SYS_PTRACE",
+    "--security-opt",
+    "seccomp=.devcontainer/buildah-debian/seccomp.json"
+  ],
+
+  "hostRequirements": {
+    "cpus": 1,
+    "memory": "8gb",
+    "storage": "20gb"
+  },
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "sh": {
+            "path": "/bin/bash",
+            "args": ["-l"]
+          }
+        }
+      },
+      "extensions": ["dracula-theme.theme-dracula", "Anthropic.claude-code"]
+    }
+  }
+}

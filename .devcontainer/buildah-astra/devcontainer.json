@@ -1,0 +1,52 @@
+{
+  "name": "buildah-astra-rootless",
+
+  "build": {
+    "dockerfile": "${localWorkspaceFolder}/buildah-astra/Dockerfile.runtime",
+    "context": "${localWorkspaceFolder}/buildah-astra"
+  },
+
+  "mounts": [
+    // passwd, group, subuid, subgid
+    "source=${localWorkspaceFolder}/.devcontainer/buildah-astra/passwd,target=/etc/passwd,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/buildah-astra/group,target=/etc/group,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/buildah-astra/subuid,target=/etc/subuid,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/buildah-astra/subgid,target=/etc/subgid,type=bind",
+    // это нужно для постоянного подключения claude code внутрь devcontainer
+    "source=${localEnv:HOME}/.claude,target=/home/.claude,type=bind",
+    // buildah image storage — именованный том, переживает пересоздание контейнера
+    "source=${localWorkspaceFolder}/.buildah-storage-2,target=/home/.local/share/containers,type=bind",
+  ],
+  "containerUser": "1000:984",
+  "updateRemoteUserUID": false,
+
+  "runArgs": [
+    // DISABLED: CAP_SYS_PTRACE — only needed for debugging (strace/gdb).
+    // Re-enable together with ptrace syscall in seccomp.json if debugging is needed
+    "--cap-add",
+    "SYS_PTRACE",
+    "--security-opt",
+    "seccomp=.devcontainer/buildah-astra/seccomp.json"
+  ],
+
+  "hostRequirements": {
+    "cpus": 1,
+    "memory": "8gb",
+    "storage": "20gb"
+  },
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "sh": {
+            "path": "/bin/bash",
+            "args": ["-l"]
+          }
+        }
+      },
+      "extensions": ["dracula-theme.theme-dracula", "Anthropic.claude-code"]
+    }
+  }
+}

@@ -89,6 +89,11 @@
       "action": "SCMP_ACT_ALLOW"
     },
     {
+      "comment": "debugging: ptrace needed for strace/gdb. Requires --cap-add SYS_PTRACE in runArgs",
+      "names": ["ptrace", "process_vm_readv", "process_vm_writev"],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
       "comment": "Docker default: personality(0) — reset execution domain to default. Needed by execve in some glibc versions",
       "names": ["personality"],
       "action": "SCMP_ACT_ALLOW",
@@ -130,13 +135,6 @@
       "names": ["clone3"],
       "action": "SCMP_ACT_ERRNO",
       "errnoRet": 38
-    },
-
-    {
-      "comment": "DISABLED: ptrace — process tracing for strace/gdb. Major attack surface: allows reading process memory, injecting code, bypassing security checks. Not needed for image builds. To re-enable: change action to SCMP_ACT_ALLOW and add --cap-add SYS_PTRACE to devcontainer.json runArgs",
-      "names": ["ptrace"],
-      "action": "SCMP_ACT_ERRNO",
-      "errnoRet": 1
     },
     {
       "comment": "DISABLED: modify_ldt — x86 Local Descriptor Table modification for legacy 32-bit threading (NPTL replaced this). Not needed on modern amd64/arm64",
