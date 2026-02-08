@@ -7,7 +7,12 @@
 
   "build": {
     "dockerfile": "${localWorkspaceFolder}/buildah-astra/Dockerfile.runtime",
-    "context": "${localWorkspaceFolder}/buildah-astra"
+    "context": "${localWorkspaceFolder}/buildah-astra",
+    // Docker не поддерживает registries.conf — нужен localhost/ для локальных образов
+    "args": {
+      "BASE_IMAGE": "localhost/astra-linux:2.12",
+      "BUILDAH_IMAGE": "localhost/buildah:local"
+    }
   },
 
   "mounts": [
