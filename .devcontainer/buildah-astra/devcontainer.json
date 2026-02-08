@@ -1,6 +1,10 @@
 {
   "name": "buildah-astra-rootless",
 
+  // Загрузка образов из buildah в Docker перед сборкой devcontainer.
+  // Образы экспортируются командой: make -C buildah-astra export (внутри buildah-debian devcontainer)
+  "initializeCommand": "for f in buildah-astra/.docker-export/*.tar; do [ -f \"$f\" ] && docker load -i \"$f\"; done",
+
   "build": {
     "dockerfile": "${localWorkspaceFolder}/buildah-astra/Dockerfile.runtime",
     "context": "${localWorkspaceFolder}/buildah-astra"
@@ -12,6 +16,8 @@
     "source=${localWorkspaceFolder}/.devcontainer/buildah-astra/group,target=/etc/group,type=bind",
     "source=${localWorkspaceFolder}/.devcontainer/buildah-astra/subuid,target=/etc/subuid,type=bind",
     "source=${localWorkspaceFolder}/.devcontainer/buildah-astra/subgid,target=/etc/subgid,type=bind",
+    // buildah registries.conf — localhost первый в поиске, позволяет не писать localhost/ в именах образов
+    "source=${localWorkspaceFolder}/.devcontainer/buildah-astra/registries.conf,target=/etc/containers/registries.conf,type=bind",
     // это нужно для постоянного подключения claude code внутрь devcontainer
     "source=${localEnv:HOME}/.claude,target=/home/.claude,type=bind",
     // buildah image storage — именованный том, переживает пересоздание контейнера

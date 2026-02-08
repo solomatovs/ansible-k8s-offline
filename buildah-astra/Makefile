@@ -6,6 +6,7 @@ BUILDAH_VERSION  := v1.38.0
 IMAGE_NAME         := buildah:local
 RUNTIME_IMAGE_NAME := buildah-rootless:local
 ARTIFACTS_DIR      := artifacts
+EXPORT_DIR         := .docker-export
 
 BUILDAH_ARCHIVE_URL = $(BUILDAH_REPO:.git=)/archive/refs/tags
 
@@ -18,7 +19,7 @@ RUNTIME_BUILD_ARGS := \
 	--build-arg BASE_IMAGE=$(BASE_IMAGE) \
 	--build-arg BUILDAH_IMAGE=$(IMAGE_NAME)
 
-.PHONY: build build-runtime download \
+.PHONY: build build-runtime download export \
         ensure ensure-runtime \
         test test-runtime shell clean
 
@@ -72,6 +73,13 @@ shell: build-runtime
 	buildah run --tty "$$ctr" -- /bin/bash; \
 	buildah rm "$$ctr" > /dev/null 2>&1 || true
 
+# --- Экспорт образов из buildah в docker-archive (для загрузки в Docker на хосте) ---
+export: ensure
+	mkdir -p $(EXPORT_DIR)
+	buildah push $(BASE_IMAGE) docker-archive:$(EXPORT_DIR)/base-image.tar:$(BASE_IMAGE)
+	buildah push $(IMAGE_NAME) docker-archive:$(EXPORT_DIR)/buildah.tar:$(IMAGE_NAME)
+
 clean:
 	@buildah rmi $(RUNTIME_IMAGE_NAME) 2>/dev/null || true
 	@buildah rmi $(IMAGE_NAME) 2>/dev/null || true
+	@rm -rf $(EXPORT_DIR)
