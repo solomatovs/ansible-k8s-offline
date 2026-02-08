@@ -1,19 +1,37 @@
 {
   "name": "ansible",
-  "image": "python:3.14",
+
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {},
+    "target": "devcontainer",
+    "context": "."
+  },
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+
   "workspaceFolder": "/app",
 
   "mounts": [
+    // сюда сохраняется cache docker образов, собираемых внутри devcontainer
+    // "source=${localWorkspaceFolder}/vscode_home,target=/home/vscode,type=bind",
+    // это нужно для постоянного подключения claude code внутрь devcontainer
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind",
+    // это нужно для того, что бы можно было использовать git прямо внутри контейнера
     "source=${localWorkspaceFolder}/.git,target=${containerWorkspaceFolder}/.git,type=bind",
+    // это нужно для переопределения окружения в котором будет работать vscode (применяются настройки иэ settings.json)
     "source=${localWorkspaceFolder}/.vscode,target=${containerWorkspaceFolder}/.vscode,type=bind",
+    // это нужно что бы затащить внутрь и devcontainer с множеством других настроек, необходимых при старте, а также что бы git не потерял эти файлы, когда будет запущен внутри devcontainer
     "source=${localWorkspaceFolder}/.devcontainer,target=${containerWorkspaceFolder}/.devcontainer,type=bind",
+    // это собственно то, ради чего нужен devcontainer
     "source=${localWorkspaceFolder}/ansible,target=${containerWorkspaceFolder}/ansible,type=bind",
-    "source=${localWorkspaceFolder}/README.md,target=${containerWorkspaceFolder}/README.md,type=bind",
-    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind"
+    // README.md нужен потому что иначе git потеряет его
+    "source=${localWorkspaceFolder}/README.md,target=${containerWorkspaceFolder}/README.md,type=bind"
   ],
-  "postCreateCommand": "export DEBIAN_FRONTEND=noninteractive && apt update && apt -y install net-tools dnsutils telnet lsof make buildah && mkdir -p /etc/containers && cp ${containerWorkspaceFolder}/.devcontainer/buildah/policy.json /etc/containers/policy.json && cp ${containerWorkspaceFolder}/.devcontainer/buildah/storage.conf /etc/containers/storage.conf && python3 -m venv ${containerWorkspaceFolder}/.venv && /bin/bash -c 'source ${containerWorkspaceFolder}/.venv/bin/activate && pip3 install ansible'",
+  // "postCreateCommand": "python3 -m venv ${containerWorkspaceFolder}/.venv && ${containerWorkspaceFolder}/.venv/bin/pip install ansible",
   "waitFor": "postCreateCommand",
   "shutdownAction": "stopContainer",
+
   "containerEnv": {
     "LC_ALL": "C.UTF-8",
     "BUILDAH_ISOLATION": "chroot",
@@ -21,9 +39,18 @@
   },
 
   "runArgs": [
-    "--name", "ansible",
-    "--security-opt", "seccomp=.devcontainer/buildah/seccomp.json"
+    "--name",
+    "ansible",
+    // подключаю строгий набор syscall который может быть использован внутри devcontainer
+    // необходим для запуска сборки docker образов внутри devcontainer
+    // разрешаю ptrace для strace/gdb
+    "--cap-add",
+    "SYS_PTRACE",
+    // подключаю строгий набор syscall который может быть использован внутри devcontainer
+    "--security-opt",
+    "seccomp=.devcontainer/buildah/seccomp.json"
   ],
+
   "forwardPorts": [8080],
   "portsAttributes": {
     "8080": { "label": "ansible", "onAutoForward": "openBrowser" }

@@ -88,6 +88,11 @@
       "action": "SCMP_ACT_ALLOW"
     },
     {
+      "comment": "debug: allow ptrace for strace/gdb (requires CAP_SYS_PTRACE)",
+      "names": ["ptrace"],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
       "comment": "Docker default: allow personality for setting execution domain (x86 compat)",
       "names": ["personality"],
       "action": "SCMP_ACT_ALLOW",
