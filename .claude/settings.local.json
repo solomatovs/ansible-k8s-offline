@@ -12,7 +12,10 @@
       "Bash(env -i LOGLEVEL=5 /usr/bin/buildah:*)",
       "Bash(# Download static crun for aarch64 # First check available versions curl -sL \"\"https://api.github.com/repos/containers/crun/releases/latest\"\")",
       "Bash(curl:*)",
-      "Bash(# No curl. Check what download tools we have which wget curl aria2c echo \"\"===\"\" # We DO have buildah, maybe we can use containers/skopeo or python which python python3 echo \"\"===\"\" # apt maybe available for downloading only? apt-get download crun 2>&1)"
+      "Bash(# No curl. Check what download tools we have which wget curl aria2c echo \"\"===\"\" # We DO have buildah, maybe we can use containers/skopeo or python which python python3 echo \"\"===\"\" # apt maybe available for downloading only? apt-get download crun 2>&1)",
+      "Bash(CTR=\"astra_linux_ce_2.12-rootfs-working-container-4\")",
+      "Bash(CTR=\"astra_linux_ce_2.12-rootfs-working-container-5\")",
+      "Bash(CTR=\"24aed00c8cfb\")"
     ]
   }
 }
