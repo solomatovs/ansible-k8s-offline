@@ -38,6 +38,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
         ca-certificates \
         make \
         curl \
+        git \
         strace \
     && rm -rf /var/lib/apt/lists/*
 

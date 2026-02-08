@@ -2,7 +2,7 @@
 ```bash
 # загрузка образа astra-linux
 buildah pull docker-archive:astra_linux_ce_2.12-rootfs
-buildah tag localhost/astra_linux_ce_2.12-rootfs:latest astra-linux:2.12
+buildah tag astra_linux_ce_2.12-rootfs:latest astra-linux:2.12
 buildah images
 
 # запуск образа с /bin/bash
