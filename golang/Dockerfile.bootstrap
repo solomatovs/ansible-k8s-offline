@@ -4,7 +4,7 @@
 # Использование: COPY --from=golang-go1.4:local /out /
 
 ARG BASE_IMAGE=localhost/astra-linux:2.12
-FROM --platform=linux/amd64 ${BASE_IMAGE}
+FROM --platform=linux/amd64 ${BASE_IMAGE} AS builder
 
 ARG GO_VERSION=go1.4
 
@@ -33,3 +33,7 @@ RUN export CGO_ENABLED=0 \
 
 RUN mkdir -p /out/usr/local/go \
  && cp -a /build/go/bin /build/go/pkg /build/go/src /out/usr/local/go/
+
+# Финальный образ — только результат сборки, без build-essential и исходников.
+FROM --platform=linux/amd64 ${BASE_IMAGE}
+COPY --from=builder /out /out
