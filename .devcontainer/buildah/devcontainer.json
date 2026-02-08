@@ -7,18 +7,15 @@
   },
 
   "mounts": [
-    "source=${localWorkspaceFolder}/.devcontainer/buildah/passwd,target=/var/lib/nss_wrapper/passwd,type=bind",
-    "source=${localWorkspaceFolder}/.devcontainer/buildah/group,target=/var/lib/nss_wrapper/group,type=bind",
-
-    // "source=${localWorkspaceFolder}/.devcontainer/buildah/passwd,target=/etc/passwd,type=bind",
-    // "source=${localWorkspaceFolder}/.devcontainer/buildah/group,target=/etc/group,type=bind",
-    // "source=${localWorkspaceFolder}/.devcontainer/buildah/subgid,target=/etc/subgid,type=bind",
-    // "source=${localWorkspaceFolder}/.devcontainer/buildah/subuid,target=/etc/subuid,type=bind"
+    // claude code config
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind",
+    // passwd, group, subuid, subgid
+    "source=${localWorkspaceFolder}/.devcontainer/buildah/passwd,target=/etc/passwd,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/buildah/group,target=/etc/group,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/buildah/subuid,target=/etc/subuid,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/buildah/subgid,target=/etc/subgid,type=bind"
   ],
-  // "updateRemoteUserUID": false,
-  // "containerUser": "build",
   "containerUser": "1001:1001",
-  // "remoteUser": "123456",
   "updateRemoteUserUID": false,
 
   "runArgs": [
@@ -45,7 +42,7 @@
           }
         }
       },
-      "extensions": ["dracula-theme.theme-dracula"]
+      "extensions": ["dracula-theme.theme-dracula", "Anthropic.claude-code"]
     }
   }
 }

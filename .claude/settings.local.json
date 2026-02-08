@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(# Check if the user_namespaces sysctls allow unprivileged user ns sysctl user.max_user_namespaces echo \"\"===\"\" sysctl kernel.unprivileged_userns_clone || echo \"\"not available\"\" echo \"\"===\"\" # Check if we''re in a nested user namespace cat /proc/self/status)",
+      "Read(//proc/1/**)",
+      "Bash(echo:*)",
+      "Bash(env)",
+      "Bash(BUILDAH_LOG_LEVEL=debug buildah run:*)",
+      "Bash(buildah:*)",
+      "Bash(# Check if Go uses CGO by looking for dynamic symbols related to user lookup objdump -T /usr/bin/buildah)",
+      "Bash(# No objdump output. Let''s check dynamic symbols with readelf readelf -d /usr/bin/buildah)",
+      "Bash(env -i LOGLEVEL=5 /usr/bin/buildah:*)",
+      "Bash(# Download static crun for aarch64 # First check available versions curl -sL \"\"https://api.github.com/repos/containers/crun/releases/latest\"\")",
+      "Bash(curl:*)",
+      "Bash(# No curl. Check what download tools we have which wget curl aria2c echo \"\"===\"\" # We DO have buildah, maybe we can use containers/skopeo or python which python python3 echo \"\"===\"\" # apt maybe available for downloading only? apt-get download crun 2>&1)"
+    ]
+  }
+}

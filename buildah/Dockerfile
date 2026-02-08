@@ -1,10 +1,33 @@
 # syntax=docker/dockerfile:1
 # Базовый образ: rootless buildah на Debian Bookworm
 #
-# Образ не привязан к конкретному пользователю — buildah работает
-# под любым UID благодаря:
-#   - nss_wrapper подставляет запись в passwd/group для неизвестного UID
-#   - HOME, graphroot, runroot с правами 1777 (sticky bit, как /tmp)
+# Образ не привязан к конкретному пользователю
+# можно запустить под любым uid если смонтировать:
+#   - /etc/passwd и /etc/group где будет указано имя пользователя, uid и gid стартового процесса
+#   - /etc/subuid и /etc/subgid где будет указаны split-диапазоны (нужно пропустить собственный uid запускаемого процесса)
+# папки: HOME, graphroot, runroot с правами 1777 (sticky bit, как /tmp)
+
+# К примеру, для пользователя builder с uid: 1001 и gid: 1001 вот так вычисляется subuid и subgid:
+# /etc/sub{u,g}id
+#   builder:1:N-1         → subordinate UIDs от 1 до N-1
+#   builder:N+1:65535-N   → subordinate UIDs от N+1 до 65535
+# 
+# Примеры файлов, которые нужно смонтировать при запуске контейнера для этого пользователя builder:
+# /etc/subuid:
+# builder:1:1000
+# builder:1002:64534
+
+# /etc/subgid:
+# builder:1:1000
+# builder:1002:64534
+
+# /etc/passwd:
+# root:x:0:0:root:/root:/bin/bash
+# builder:x:1001:1001:builder:/home:/bin/bash
+# 
+# /etc/group:
+# root:x:0:
+# builder:x:1001:
 FROM debian:bookworm-slim
 
 # Установка зависимостей
@@ -13,12 +36,11 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends \
         buildah \
         libcap2-bin \
-        libnss-wrapper \
         ca-certificates \
         strace \
     && rm -rf /var/lib/apt/lists/*
 
-# Конфигурация buildah, nss_wrapper, права доступа
+# Конфигурация buildah, права доступа
 RUN <<'SCRIPT'
 set -e
 
@@ -71,32 +93,10 @@ setcap cap_setuid+ep /usr/bin/newuidmap
 setcap cap_setgid+ep /usr/bin/newgidmap
 chmod u-s /usr/bin/newuidmap /usr/bin/newgidmap
 
-# --- nss_wrapper: поддержка произвольного UID ---
-# nss_wrapper через LD_PRELOAD перехватывает вызовы getpwuid/getgrnam и подставляет
-# записи из собственных файлов вместо /etc/passwd и /etc/group.
-# Это позволяет buildah (и другим утилитам) видеть пользователя без модификации /etc/passwd.
-#
-# ВАЖНО: /etc/ld.so.preload вместо LD_PRELOAD env var.
-# newuidmap/newgidmap имеют file capabilities → ядро включает secure-exec
-# и сбрасывает LD_PRELOAD. Но /etc/ld.so.preload является системным файлом
-# и загружается ВСЕГДА, даже для setuid/capabilities бинарников.
-
-# Архитектурно-независимый симлинк
-ln -s "$(find /usr/lib -name 'libnss_wrapper.so' -print -quit)" /usr/local/lib/libnss_wrapper.so
-
-# Системный preload — работает для ВСЕХ бинарников, включая newuidmap/newgidmap
-echo /usr/local/lib/libnss_wrapper.so > /etc/ld.so.preload
-
-# Записываемые копии passwd/group для nss_wrapper
-mkdir -p /var/lib/nss_wrapper
-cp /etc/passwd /var/lib/nss_wrapper/passwd
-cp /etc/group  /var/lib/nss_wrapper/group
-chmod a+w /var/lib/nss_wrapper/passwd /var/lib/nss_wrapper/group
-
-# subuid/subgid очищаем — внутри Docker-контейнера доступен только текущий UID.
-# Многодиапазонные маппинги (builder:1:999 и т.д.) невозможны: ядро отвергает
-# запись в uid_map/gid_map для UID, не замапленных во внешнем user namespace.
-# Без записей buildah сразу использует single mapping (0 → текущий UID) без WARN.
+# subuid/subgid очищаем — правильные значения монтируются при запуске контейнера.
+# Формат для UID N (пропускаем сам N, чтобы избежать EINVAL в newuidmap):
+#   builder:1:N-1         → subordinate UIDs от 1 до N-1
+#   builder:N+1:65535-N   → subordinate UIDs от N+1 до 65535
 : > /etc/subuid
 : > /etc/subgid
 SCRIPT
@@ -106,6 +106,3 @@ VOLUME /var/lib/containers
 ENV HOME=/home
 ENV LANG=C.UTF-8
 ENV BUILDAH_ISOLATION=chroot
-ENV _BUILDAH_STARTED_IN_USERNS=1
-ENV NSS_WRAPPER_PASSWD=/var/lib/nss_wrapper/passwd
-ENV NSS_WRAPPER_GROUP=/var/lib/nss_wrapper/group
