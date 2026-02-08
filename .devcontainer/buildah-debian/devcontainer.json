@@ -48,7 +48,11 @@
           }
         }
       },
-      "extensions": ["dracula-theme.theme-dracula", "Anthropic.claude-code"]
+      "extensions": [
+        "dracula-theme.theme-dracula",
+        "Anthropic.claude-code",
+        "mhutchie.git-graph"
+      ]
     }
   }
 }

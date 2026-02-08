@@ -27,6 +27,7 @@ RUN apt-get update \
         ca-certificates \
         make \
         curl \
+        git \
         strace \
     && rm -rf /var/lib/apt/lists/*
 
