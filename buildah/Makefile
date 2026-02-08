@@ -1,4 +1,4 @@
-BASE_IMAGE       := localhost/astra-linux:2.12
+BASE_IMAGE       := astra-linux:2.12
 GO_IMAGE         := golang-go1.22.6:local
 BUILDAH_REPO     := https://github.com/containers/buildah.git
 BUILDAH_VERSION  := v1.38.0

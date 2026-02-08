@@ -4,7 +4,7 @@
 # Использование: COPY --from=buildah:local /out /
 
 ARG GO_IMAGE=golang-go1.22.6:local
-ARG BASE_IMAGE=localhost/astra-linux:2.12
+ARG BASE_IMAGE=astra-linux:2.12
 
 FROM ${GO_IMAGE} AS golang
 

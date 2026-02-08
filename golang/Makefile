@@ -1,4 +1,4 @@
-BASE_IMAGE    := localhost/astra-linux:2.12
+BASE_IMAGE    := astra-linux:2.12
 GO_REPO       := https://github.com/golang/go.git
 GO_PROXY_URL  := https://proxy.golang.org
 IMAGE_PREFIX  := golang

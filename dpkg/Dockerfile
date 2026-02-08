@@ -3,7 +3,7 @@
 # Бинарники не имеют runtime-зависимостей и переносимы между дистрибутивами.
 # Использование: COPY --from=dpkg-rootless:local /out /
 
-ARG BASE_IMAGE=localhost/astra-linux:2.12
+ARG BASE_IMAGE=astra-linux:2.12
 
 FROM ${BASE_IMAGE} AS builder
 

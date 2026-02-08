@@ -8,7 +8,7 @@
 # Папки: HOME, graphroot, runroot с правами 1777 (sticky bit, как /tmp)
 
 ARG BUILDAH_IMAGE=buildah:local
-ARG BASE_IMAGE=localhost/astra-linux:2.12
+ARG BASE_IMAGE=astra-linux:2.12
 
 FROM ${BUILDAH_IMAGE} AS buildah
 

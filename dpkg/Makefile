@@ -1,5 +1,5 @@
 IMAGE        := dpkg-rootless:local
-BASE_IMAGE   := localhost/astra-linux:2.12
+BASE_IMAGE   := astra-linux:2.12
 ARTIFACTS_DIR := artifacts
 
 DPKG_VERSION := 1.23.5

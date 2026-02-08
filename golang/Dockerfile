@@ -4,7 +4,7 @@
 # Использование: COPY --from=golang-go1.24.5:local /out /
 
 ARG BOOTSTRAP_IMAGE
-ARG BASE_IMAGE=localhost/astra-linux:2.12
+ARG BASE_IMAGE=astra-linux:2.12
 
 FROM ${BOOTSTRAP_IMAGE} AS bootstrap
 
