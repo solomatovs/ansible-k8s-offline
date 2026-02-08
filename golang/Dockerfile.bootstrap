@@ -1,0 +1,35 @@
+# Сборка Go 1.4 из исходников (компиляция из C, без bootstrap Go).
+# go1.4 — первый в цепочке bootstrap: go1.4 → go1.17 → go1.20 → go1.22 → go1.24
+# Результат: /out/usr/local/go/{bin,pkg,src}
+# Использование: COPY --from=golang-go1.4:local /out /
+
+ARG BASE_IMAGE=localhost/astra-linux:2.12
+FROM --platform=linux/amd64 ${BASE_IMAGE}
+
+ARG GO_VERSION=go1.4
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+        build-essential \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+COPY artifacts/${GO_VERSION}.tar.gz /build/
+RUN mkdir -p /build/go \
+ && tar xzf /build/${GO_VERSION}.tar.gz --strip-components=1 -C /build/go \
+ && rm /build/${GO_VERSION}.tar.gz
+
+WORKDIR /build/go/src
+
+# CGO_ENABLED=0 — go1.4 собирается чисто из C
+# CC="gcc -static" — статическая линковка C-тулчейна
+# Удаляем -Werror — GCC 6.x в Astra Linux выдаёт предупреждения, которые ломают сборку
+RUN export CGO_ENABLED=0 \
+ && export CC="gcc -static" \
+ && sed -i '/"-Werror",/d' cmd/dist/build.c \
+ && ./make.bash
+
+RUN mkdir -p /out/usr/local/go \
+ && cp -a /build/go/bin /build/go/pkg /build/go/src /out/usr/local/go/

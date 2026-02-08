@@ -130,8 +130,6 @@
     src: "{{ go_bootstrap_dir }}/{{ go_bootstrap_bin }}"
     dest: "{{ remote_src_dir }}/{{ go_bootstrap_bin }}"
 
-- debug: "msg={{ remote_src_dir }}/Dockerfile"
-
 - name: "create Dockerfile from template"
   template:
     src: "{{ build_version.dockerfile }}"
@@ -139,34 +137,26 @@
 
 - name: "build Dockerfile"
   command: >
-    buildah bud
-      --isolation chroot
+    docker build
       --file "{{ remote_src_dir }}/Dockerfile"
       --tag {{ docker_image_name }}:{{ docker_image_tag }}
       "{{ remote_src_dir }}"
 
 - name: "remove existing container"
-  command: buildah rm {{ docker_container_name }}
+  command: docker rm {{ docker_container_name }}
   ignore_errors: true
 
 - name: "create container"
-  command: buildah from --isolation chroot --name {{ docker_container_name }} {{ docker_image_name }}:{{ docker_image_tag }}
-
-- name: "mount container"
-  command: buildah mount {{ docker_container_name }}
-  register: mount_result
+  command: docker create --name {{ docker_container_name }} {{ docker_image_name }}:{{ docker_image_tag }}
 
 - name: "copy bin from container"
-  command: cp "{{ mount_result.stdout }}/app/bin/{{ archive_bin }}" "{{ remote_bin_dir }}"
-
-- name: "unmount container"
-  command: buildah unmount {{ docker_container_name }}
+  command: docker cp {{ docker_container_name }}:"/app/bin/{{ archive_bin }}" "{{ remote_bin_dir }}"
 
 - name: "remove existing container"
-  command: buildah rm {{ docker_container_name }}
+  command: docker container rm {{ docker_container_name }}
 
 - name: "remove existing image"
-  command: buildah rmi {{ docker_image_name }}:{{ docker_image_tag }}
+  command: docker image rm {{ docker_image_name }}:{{ docker_image_tag }}
 
 - name: "copy archive to local"
   fetch:
