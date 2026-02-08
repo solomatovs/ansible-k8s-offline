@@ -8,7 +8,7 @@ ARG BASE_IMAGE=localhost/astra-linux:2.12
 
 FROM ${BOOTSTRAP_IMAGE} AS bootstrap
 
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} AS builder
 
 ARG GO_VERSION
 ARG GO_PROXY_URL=https://proxy.golang.org
@@ -37,3 +37,7 @@ RUN export GOROOT_BOOTSTRAP=/usr/local/go-bootstrap \
 
 RUN mkdir -p /out/usr/local/go \
  && cp -a /build/go/bin /build/go/pkg /build/go/src /out/usr/local/go/
+
+# Финальный образ — только результат сборки, без bootstrap, build-essential и исходников.
+FROM ${BASE_IMAGE}
+COPY --from=builder /out /out
