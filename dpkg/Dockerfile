@@ -1,8 +1,15 @@
-# Сборка dpkg с патчами для rootless-установки пакетов.
+# Сборка полностью статического dpkg с патчами для rootless-установки пакетов.
 # Результат: /out (--prefix=/usr, --localstatedir=/var, --sysconfdir=/etc)
+# Бинарники не имеют runtime-зависимостей и переносимы между дистрибутивами.
 # Использование: COPY --from=dpkg-rootless:local /out /
-# FROM debian:bookworm
-FROM localhost/astra-linux:2.12
+
+ARG BASE_IMAGE=localhost/astra-linux:2.12
+FROM ${BASE_IMAGE}
+
+ARG DPKG_VERSION=1.23.5
+ARG DPKG_URL=http://deb.debian.org/debian/pool/main/d/dpkg/dpkg_${DPKG_VERSION}.tar.xz
+ARG LIBMD_VERSION=1.1.0
+ARG LIBMD_URL=https://archive.hadrons.org/software/libmd/libmd-${LIBMD_VERSION}.tar.xz
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -22,20 +29,25 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
 
 WORKDIR /build
 
-# Сборка libmd из исходников (в Astra Linux 2.12 пакет libmd-dev отсутствует,
-# а dpkg 1.23.5 требует md5.h / MD5Init из libmd)
-RUN wget https://archive.hadrons.org/software/libmd/libmd-1.1.0.tar.xz \
- && tar -xf libmd-1.1.0.tar.xz \
- && cd libmd-1.1.0 \
- && ./configure --prefix=/usr \
+# Сборка libmd из исходников (static-only: нужна только libmd.a)
+RUN wget ${LIBMD_URL} \
+ && tar -xf libmd-${LIBMD_VERSION}.tar.xz \
+ && cd libmd-${LIBMD_VERSION} \
+ && ./configure --prefix=/usr --enable-static --disable-shared \
  && make -j$(nproc) \
- && make install \
- && ldconfig
+ && make install
 
-RUN wget http://deb.debian.org/debian/pool/main/d/dpkg/dpkg_1.23.5.tar.xz \
- && tar -xf dpkg_1.23.5.tar.xz
+RUN wget ${DPKG_URL} \
+ && tar -xf dpkg_${DPKG_VERSION}.tar.xz
 
-WORKDIR /build/dpkg-1.23.5
+# Удаляем все .so для зависимостей — линкер найдёт только .a
+# (после распаковки tar.xz, т.к. tar нужна liblzma.so для xz-декомпрессии)
+RUN find /usr/lib /lib -name "liblzma.so*" -delete 2>/dev/null; \
+    find /usr/lib /lib -name "libzstd.so*" -delete 2>/dev/null; \
+    find /usr/lib /lib -name "libbz2.so*" -delete 2>/dev/null; \
+    true
+
+WORKDIR /build/dpkg-${DPKG_VERSION}
 
 # Патч 1: убираем проверку UID при открытии базы dpkg
 RUN sed -i 's/if (getuid() || geteuid())/if (0)/' lib/dpkg/dbmodify.c
@@ -53,17 +65,31 @@ RUN sed -i \
     -e 's|dpkg_arch=$(PERL=$PERL ${CONFIG_SHELL-/bin/sh} "$srcdir/build-aux/run-script" scripts/dpkg-architecture.pl -t$host -qDEB_HOST_ARCH 2>/dev/null)|dpkg_arch=amd64|' \
     configure
 
-# --disable-dselect: dselect тоже требует Perl 5.36 при сборке (mkcurkeys.pl)
+# Патч 4: libtool стрипает -static из команды линковки.
+# Заставляем libtool передавать -static в gcc при статической сборке.
 RUN ./configure PERL=/usr/bin/perl \
+      LDFLAGS="-static" \
       --prefix=/usr \
       --localstatedir=/var \
       --sysconfdir=/etc \
-      --disable-static \
+      --enable-static \
+      --disable-shared \
       --disable-dselect \
       --disable-nls \
       --disable-start-stop-daemon \
       --disable-update-alternatives \
       --without-libselinux \
+ && perl -0777 -i -pe \
+    's{-static \| -static-libtool-libs\)\n\t# The effects of -static are defined in a previous loop\.\n\t# We used to do the same as -all-static on platforms that\n\t# didn.t have a PIC flag, but the assumption that the effects\n\t# would be equivalent was wrong\.  It would break on at least\n\t# Digital Unix and AIX\.\n\tcontinue}{-static | -static-libtool-libs)\n\tfunc_append compile_command " \$link_static_flag"\n\tfunc_append finalize_command " \$link_static_flag"\n\tcontinue}s' \
+    libtool \
  && make -j$(nproc)
 
-RUN make DESTDIR=/out install
+RUN make DESTDIR=/out install \
+ && strip /out/usr/bin/dpkg \
+          /out/usr/bin/dpkg-deb \
+          /out/usr/bin/dpkg-divert \
+          /out/usr/bin/dpkg-query \
+          /out/usr/bin/dpkg-realpath \
+          /out/usr/bin/dpkg-split \
+          /out/usr/bin/dpkg-statoverride \
+          /out/usr/bin/dpkg-trigger
