@@ -64,9 +64,11 @@ labels = \
 	--label org.opencontainers.image.version=$(1)-$(2) \
 	--label org.opencontainers.image.base.name=$(BASE_IMAGE)
 
-# --- Валидация и ensure ---
-check_version = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image go1.22.6)"; echo "Поддерживаемые версии: $(GO_VERSIONS)"; exit 1; fi
+# --- Валидация (внешние зависимости — ошибка если нет) ---
+check_version  = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image go1.22.6)"; echo "Поддерживаемые версии: $(GO_VERSIONS)"; exit 1; fi
+check_src_file = @test -f $(ARTIFACTS_SRC)/golang-$(V).tar.gz || (echo "Ошибка: $(ARTIFACTS_SRC)/golang-$(V).tar.gz не найден"; echo "Выполните: make download $(V)"; exit 1)
 
+# --- Ensure (внутренние зависимости — автосборка если нет) ---
 ensure         = @$(_INSPECT) $(call image_name,$(1)) > /dev/null 2>&1 || $(MAKE) image V=$(1) T=build
 ensure_runtime = @$(_INSPECT) $(call runtime_name,$(1)) > /dev/null 2>&1 || $(MAKE) image V=$(1) T=runtime
 
@@ -84,9 +86,6 @@ _TAR_NAME   = $(IMAGE_NAME)-$(V)-$(T).tar
 
 _BUILD_TEST_CMD = $(if $(filter go1.4,$(V)),sh -c 'GOROOT=/out/usr/local/go /out/usr/local/go/bin/go version',/out/usr/local/go/bin/go version)
 _TEST_CMD       = $(if $(filter runtime,$(T)),go version,$(_BUILD_TEST_CMD))
-
-_pre_image = $(if $(filter runtime,$(T)),$(call ensure,$(V)),@$(MAKE) $(ARTIFACTS_SRC)/golang-$(V).tar.gz)
-_pre_run   = $(if $(filter runtime,$(T)),$(call ensure_runtime,$(V)),$(call ensure,$(V)))
 
 .DEFAULT_GOAL := help
 
@@ -132,8 +131,9 @@ $(ARTIFACTS_SRC)/golang-%.tar.gz:
 
 image:
 	$(call check_version)
-	$(_pre_image)
-	$(if $(and $(filter build,$(T)),$(_BOOTSTRAP)),$(call ensure,$(_BOOTSTRAP)),@:)
+	$(if $(filter build,$(T)),$(call check_src_file))
+	$(if $(filter runtime,$(T)),$(call ensure,$(V)))
+	$(if $(and $(filter build,$(T)),$(_BOOTSTRAP)),$(call ensure,$(_BOOTSTRAP)))
 	$(_BUILD) \
 	  $(_BUILD_ARGS) \
 	  $(_LABELS) \
@@ -150,13 +150,13 @@ build:
 
 test:
 	$(call check_version)
-	$(_pre_run)
+	$(if $(filter runtime,$(T)),$(call ensure_runtime,$(V)),$(call ensure,$(V)))
 	@echo "=== $(_IMAGE) ==="
 	@$(call _run,$(_IMAGE),$(_TEST_CMD))
 
 shell:
 	$(call check_version)
-	$(_pre_run)
+	$(if $(filter runtime,$(T)),$(call ensure_runtime,$(V)),$(call ensure,$(V)))
 	@$(call _shell,$(_IMAGE))
 
 clean:
