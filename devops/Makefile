@@ -2,120 +2,112 @@
 # DevOps-образ: rootless buildah + dpkg + golang на Astra Linux
 # =============================================================================
 
-# --- Зависимости (должны быть собраны до сборки этого образа) ---
-BASE_IMAGE    := astra-linux:2.12
-DPKG_IMAGE    := dpkg-astra:1.23.5-build
-BUILDAH_IMAGE := buildah-astra:v1.38.0-build
-GO_IMAGE      := golang-astra:go1.24.5-build
-DEVOPS_IMAGE  := devops-astra:latest
+-include config.local.mk
+-include config.mk
 
+BASE_IMAGE       := astra-linux:2.12
+DEVOPS_IMAGE     := devops-astra:latest
+
+# --- Версии внешних зависимостей ---
+DPKG_VERSION    ?= 1.23.5
+BUILDAH_VERSION ?= 1.38.0
+GO_VERSION      ?= 1.24.5
+
+ARTIFACTS_DEPS   := artifacts/deps
 ARTIFACTS_IMAGES := artifacts/images
 
-BUILD_ARGS := \
-	--build-arg BASE_IMAGE=$(BASE_IMAGE) \
-	--build-arg DPKG_IMAGE=$(DPKG_IMAGE) \
-	--build-arg BUILDAH_IMAGE=$(BUILDAH_IMAGE) \
-	--build-arg GO_IMAGE=$(GO_IMAGE)
+# Имена файлов бинарных зависимостей
+_DPKG_DEP    = $(ARTIFACTS_DEPS)/dpkg-$(DPKG_VERSION).tar.gz
+_BUILDAH_DEP = $(ARTIFACTS_DEPS)/buildah-$(BUILDAH_VERSION).tar.gz
+_GO_DEP      = $(ARTIFACTS_DEPS)/golang-$(GO_VERSION).tar.gz
+
+include ../mk/backend.mk
+include ../mk/deps.mk
+
+# Правила извлечения зависимостей из Docker-образов
+$(eval $(call dep_rule,dpkg,dpkg))
+$(eval $(call dep_rule,buildah,buildah))
+$(eval $(call dep_rule,golang,golang))
 
 LABELS := \
 	--label org.opencontainers.image.title=devops-astra \
 	--label org.opencontainers.image.base.name=$(BASE_IMAGE)
 
-# Собрать зависимость только если образа нет
-# $(1) — образ для проверки, $(2) — make-таргет для сборки
-ensure_buildah = @buildah inspect $(1) > /dev/null 2>&1 || $(MAKE) $(2)
-ensure_docker  = @docker inspect $(1) > /dev/null 2>&1 || $(MAKE) $(2)
+BUILD_ARGS := \
+	--build-arg BASE_IMAGE=$(BASE_IMAGE) \
+	--build-arg DPKG_VERSION=$(DPKG_VERSION) \
+	--build-arg BUILDAH_VERSION=$(BUILDAH_VERSION) \
+	--build-arg GO_VERSION=$(GO_VERSION)
+
+# --- Ensure (внутренние зависимости — автосборка если нет) ---
+ensure = @$(_INSPECT) $(DEVOPS_IMAGE) > /dev/null 2>&1 || $(MAKE) image
 
 .DEFAULT_GOAL := help
 
-.PHONY: help image test shell clean \
-        docker-image docker-test docker-shell docker-clean
+.PHONY: help deps image test shell clean
 
 help:
 	@echo "Usage: make docker/<target>    (на хосте, через Docker)"
 	@echo "       make buildah/<target>   (внутри devcontainer, через Buildah)"
 	@echo ""
 	@echo "Targets:"
+	@echo "  deps             Извлечь бинарные зависимости из Docker-образов в artifacts/deps/"
 	@echo "  image            Собрать образ и экспортировать в artifacts/images/"
-	@echo "  test             Проверить артефакты сборки: dpkg, buildah, go version"
-	@echo "  shell            Запустить shell в контейнере"
-	@echo "  clean            Удалить образы, артефакты"
+	@echo "  test             Проверить артефакты: dpkg, buildah, go version"
+	@echo "  shell            Shell в образе"
+	@echo "  clean            Удалить образы и артефакты"
 	@echo ""
-	@echo "Зависимости (должны быть собраны заранее):"
-	@echo "  $(DPKG_IMAGE)"
-	@echo "  $(BUILDAH_IMAGE)"
-	@echo "  $(GO_IMAGE)"
+	@echo "  Зависимости (deps):"
+	@echo "    dpkg:$(DPKG_VERSION)-build       → artifacts/deps/"
+	@echo "    buildah:$(BUILDAH_VERSION)-build  → artifacts/deps/"
+	@echo "    golang:$(GO_VERSION)-build        → artifacts/deps/"
 	@echo ""
-	@echo "Примеры:"
-	@echo "  make docker/image"
-	@echo "  make buildah/test"
+	@echo "  Переопределение версий:"
+	@echo "    make docker/image DPKG_VERSION=1.23.5 BUILDAH_VERSION=1.42.0 GO_VERSION=1.24.5"
+	@echo ""
+	@echo "  Примеры:"
+	@echo "    make docker/deps"
+	@echo "    make docker/image"
+	@echo "    make docker/test"
+
+# --- Извлечение бинарных зависимостей из Docker-образов ---
+deps:
+	@$(MAKE) $(_DPKG_DEP) $(_BUILDAH_DEP) $(_GO_DEP)
 
 # =============================================================================
-# Buildah-based (внутри buildah devcontainer)
+# Targets (backend выбирается через BACKEND)
 # =============================================================================
 
 image:
-	buildah bud \
+	$(call check_dep,$(_DPKG_DEP))
+	$(call check_dep,$(_BUILDAH_DEP))
+	$(call check_dep,$(_GO_DEP))
+	$(_BUILD) \
 	  $(BUILD_ARGS) \
 	  $(LABELS) \
 	  -t $(DEVOPS_IMAGE) .
 	mkdir -p $(ARTIFACTS_IMAGES)
-	rm -f $(ARTIFACTS_IMAGES)/devops-astra.tar
-	buildah push $(DEVOPS_IMAGE) docker-archive:$(ARTIFACTS_IMAGES)/devops-astra.tar:$(DEVOPS_IMAGE)
+	$(call _save,$(DEVOPS_IMAGE),$(ARTIFACTS_IMAGES)/devops-astra.tar)
 
 test:
-	$(call ensure_buildah,$(DEVOPS_IMAGE),image)
-	@ctr=$$(buildah from $(DEVOPS_IMAGE)) && \
-	echo "=== dpkg ===" && \
-	buildah run "$$ctr" -- /usr/bin/dpkg --version && \
-	echo "=== buildah ===" && \
-	buildah run "$$ctr" -- /usr/bin/buildah version && \
-	echo "=== go ===" && \
-	buildah run "$$ctr" -- /usr/local/go/bin/go version && \
-	buildah rm "$$ctr" > /dev/null
+	$(call ensure)
+	@echo "=== $(DEVOPS_IMAGE) ==="
+	@$(call _run,$(DEVOPS_IMAGE),sh -c 'echo "--- dpkg ---" && /usr/bin/dpkg --version && echo "--- buildah ---" && /usr/bin/buildah version && echo "--- go ---" && /usr/local/go/bin/go version')
 
 shell:
-	$(call ensure_buildah,$(DEVOPS_IMAGE),image)
-	@ctr=$$(buildah from $(DEVOPS_IMAGE)) && \
-	buildah run --tty "$$ctr" -- /bin/bash; \
-	buildah rm "$$ctr" > /dev/null 2>&1 || true
+	$(call ensure)
+	@$(call _shell,$(DEVOPS_IMAGE))
 
 clean:
-	@buildah rmi $(DEVOPS_IMAGE) 2>/dev/null || true
-	@rm -rf $(ARTIFACTS_IMAGES)
-
-# =============================================================================
-# Docker-based (на хосте)
-# =============================================================================
-
-docker-image:
-	docker build \
-	  $(BUILD_ARGS) \
-	  $(LABELS) \
-	  -t $(DEVOPS_IMAGE) .
-	mkdir -p $(ARTIFACTS_IMAGES)
-	docker save -o $(ARTIFACTS_IMAGES)/devops-astra.tar $(DEVOPS_IMAGE)
-
-docker-test:
-	$(call ensure_docker,$(DEVOPS_IMAGE),docker-image)
-	@docker run --rm $(DEVOPS_IMAGE) sh -c '\
-	  echo "=== dpkg ===" && /usr/bin/dpkg --version && \
-	  echo "=== buildah ===" && /usr/bin/buildah version && \
-	  echo "=== go ===" && /usr/local/go/bin/go version'
-
-docker-shell:
-	$(call ensure_docker,$(DEVOPS_IMAGE),docker-image)
-	@docker run --rm -it $(DEVOPS_IMAGE) /bin/bash
-
-docker-clean:
 	@docker rmi $(DEVOPS_IMAGE) 2>/dev/null || true
-	@rm -rf $(ARTIFACTS_IMAGES)
+	@buildah rmi $(DEVOPS_IMAGE) 2>/dev/null || true
+	@rm -rf $(ARTIFACTS_IMAGES) $(ARTIFACTS_DEPS)
 
 # =============================================================================
 # Namespace shortcuts: make docker/<target> или make buildah/<target>
 # =============================================================================
 docker/%:
-	@$(MAKE) docker-$*
+	@$(MAKE) $* BACKEND=docker $(if $(DPKG_VERSION),DPKG_VERSION=$(DPKG_VERSION)) $(if $(BUILDAH_VERSION),BUILDAH_VERSION=$(BUILDAH_VERSION)) $(if $(GO_VERSION),GO_VERSION=$(GO_VERSION))
 
 buildah/%:
-	@$(MAKE) $*
+	@$(MAKE) $* BACKEND=buildah $(if $(DPKG_VERSION),DPKG_VERSION=$(DPKG_VERSION)) $(if $(BUILDAH_VERSION),BUILDAH_VERSION=$(BUILDAH_VERSION)) $(if $(GO_VERSION),GO_VERSION=$(GO_VERSION))

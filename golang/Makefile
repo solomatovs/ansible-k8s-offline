@@ -3,22 +3,14 @@
 
 GO_REPO       := $(GITHUB_URL)/golang/go.git
 GO_PROXY_URL  ?= $(GOPROXY_URL)
-IMAGE_NAME    := golang-astra
+IMAGE_NAME    := golang
 BASE_IMAGE    := astra-linux:2.12
 
 # Цепочка bootstrap: 1.4 → 1.17.13 → 1.20.6 → 1.22.6 → 1.24.5
-# Каждая версия собирается предыдущей.
-GO_VERSIONS := 1.4 1.17.13 1.20.6 1.22.6 1.24.5
-
-# Bootstrap-зависимости (предыдущая версия для сборки)
-BOOTSTRAP_1.17.13 := 1.4
-BOOTSTRAP_1.20.6  := 1.17.13
-BOOTSTRAP_1.22.6  := 1.20.6
-BOOTSTRAP_1.24.5  := 1.22.6
-
-# Версия из командной строки: make docker/image 1.22.6
-_VERSION_ARGS := $(filter $(GO_VERSIONS),$(MAKECMDGOALS))
-V := $(or $(V),$(firstword $(_VERSION_ARGS)))
+# Каждая версия собирается предыдущей. 1.4 — начальный bootstrap (без deps).
+EXTRA_VERSIONS := 1.4
+include ../mk/versions.mk
+GO_VERSIONS := $(VERSIONS)
 T ?= runtime
 
 ARTIFACTS_SRC    := artifacts/src
@@ -31,37 +23,16 @@ BUILD_ARGS_COMMON := \
 	--build-arg BASE_IMAGE=$(BASE_IMAGE) \
 	--build-arg GO_PROXY_URL=$(GO_PROXY_URL)
 
-# =============================================================================
-# Backend: buildah (по умолчанию) или docker
-# =============================================================================
-BACKEND ?= buildah
-
-ifeq ($(BACKEND),docker)
-  _BUILD   = docker build
-  _RMI     = docker rmi
-  _INSPECT = docker inspect
-  _save    = docker save -o $(2) $(1)
-  _run     = docker run --rm $(1) $(2)
-  _shell   = docker run --rm -it $(1) /bin/bash
-  _extract = id=$$(docker create $(1) true) && docker cp "$$id":/out/. - | gzip > $(2) && docker rm "$$id" > /dev/null
-else
-  _BUILD   = buildah bud
-  _RMI     = buildah rmi
-  _INSPECT = buildah inspect
-  _save    = rm -f $(2) && buildah push $(1) docker-archive:$(2):$(1)
-  _run     = ctr=$$(buildah from $(1)) && buildah run "$$ctr" -- $(2) && buildah rm "$$ctr" > /dev/null
-  _shell   = ctr=$$(buildah from $(1)) && buildah run --tty "$$ctr" -- /bin/bash; buildah rm "$$ctr" > /dev/null 2>&1 || true
-  _extract = ctr=$$(buildah from $(1)) && buildah run "$$ctr" -- tar -cf - -C /out . | gzip > $(2) && buildah rm "$$ctr" > /dev/null
-endif
+include ../mk/backend.mk
 
 # --- Имена образов ---
 image_name   = $(IMAGE_NAME):$(1)-build
-runtime_name = $(IMAGE_NAME):$(1)-runtime
+runtime_name = $(IMAGE_NAME)-astra:$(1)-runtime
 
 # --- OCI-лейблы ---
 labels = \
-	--label org.opencontainers.image.title=$(IMAGE_NAME) \
-	--label org.opencontainers.image.version=$(1)-$(2) \
+	--label org.opencontainers.image.title=$(1) \
+	--label org.opencontainers.image.version=$(2)-$(3) \
 	--label org.opencontainers.image.base.name=$(BASE_IMAGE)
 
 # --- Валидация (внешние зависимости — ошибка если нет) ---
@@ -73,16 +44,20 @@ ensure         = @$(_INSPECT) $(call image_name,$(1)) > /dev/null 2>&1 || $(MAKE
 ensure_runtime = @$(_INSPECT) $(call runtime_name,$(1)) > /dev/null 2>&1 || $(MAKE) image V=$(1) T=runtime
 
 # --- Вычисляемые переменные для текущих V и T ---
-_BOOTSTRAP  = $(BOOTSTRAP_$(V))
+_BOOTSTRAP  = $(BOOTSTRAP_VERSION)
 _IMAGE      = $(if $(filter runtime,$(T)),$(call runtime_name,$(V)),$(call image_name,$(V)))
-_DOCKERFILE = $(if $(filter runtime,$(T)),Dockerfile.runtime,$(if $(_BOOTSTRAP),Dockerfile,Dockerfile.bootstrap))
+_DOCKERFILE = $(if $(filter runtime,$(T)),\
+  $(or $(DOCKERFILE_RUNTIME),Dockerfile.runtime),\
+  $(if $(_BOOTSTRAP),\
+    $(or $(DOCKERFILE_BUILD),Dockerfile),\
+    $(or $(DOCKERFILE_BOOTSTRAP),Dockerfile.bootstrap)))
 
 _BUILD_ARGS = $(if $(filter runtime,$(T)),\
   --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg BUILD_IMAGE=$(call image_name,$(V)),\
   $(BUILD_ARGS_COMMON) --build-arg GO_VERSION=$(V)$(if $(_BOOTSTRAP), --build-arg BOOTSTRAP_IMAGE=$(call image_name,$(_BOOTSTRAP))))
 
-_LABELS     = $(call labels,$(V),$(T))
-_TAR_NAME   = $(IMAGE_NAME)-$(V)-$(T).tar
+_LABELS     = $(call labels,$(if $(filter runtime,$(T)),$(IMAGE_NAME)-astra,$(IMAGE_NAME)),$(V),$(T))
+_TAR_NAME   = $(if $(filter runtime,$(T)),$(IMAGE_NAME)-astra,$(IMAGE_NAME))-$(V)-$(T).tar
 
 _BUILD_TEST_CMD = $(if $(filter 1.4,$(V)),sh -c 'GOROOT=/out/usr/local/go /out/usr/local/go/bin/go version',/out/usr/local/go/bin/go version)
 _TEST_CMD       = $(if $(filter runtime,$(T)),go version,$(_BUILD_TEST_CMD))
@@ -146,7 +121,7 @@ build:
 	$(call check_version)
 	$(call ensure,$(V))
 	mkdir -p $(ARTIFACTS_BUILD)
-	@$(call _extract,$(call image_name,$(V)),$(ARTIFACTS_BUILD)/golang-astra-$(V).tar.gz)
+	@$(call _extract,$(call image_name,$(V)),$(ARTIFACTS_BUILD)/golang-$(V).tar.gz)
 
 test:
 	$(call check_version)
@@ -166,8 +141,8 @@ clean:
 	  buildah rmi $(call runtime_name,$(V)) 2>/dev/null || true; \
 	  buildah rmi $(call image_name,$(V)) 2>/dev/null || true; \
 	  rm -f $(ARTIFACTS_IMAGES)/$(IMAGE_NAME)-$(V)-build.tar; \
-	  rm -f $(ARTIFACTS_IMAGES)/$(IMAGE_NAME)-$(V)-runtime.tar; \
-	  rm -f $(ARTIFACTS_BUILD)/golang-astra-$(V).tar.gz; \
+	  rm -f $(ARTIFACTS_IMAGES)/$(IMAGE_NAME)-astra-$(V)-runtime.tar; \
+	  rm -f $(ARTIFACTS_BUILD)/golang-$(V).tar.gz; \
 	  rm -f $(ARTIFACTS_SRC)/golang-$(V).tar.gz; \
 	else \
 	  for v in $(GO_VERSIONS); do $(MAKE) clean V=$$v; done; \

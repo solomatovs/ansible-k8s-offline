@@ -2,78 +2,55 @@
 -include config.mk
 
 BASE_IMAGE    := astra-linux:2.12
-DPKG_VERSIONS := 1.23.5
-
-# Версия из командной строки: make docker/image 1.23.5
-_VERSION_ARGS := $(filter $(DPKG_VERSIONS),$(MAKECMDGOALS))
-V := $(or $(V),$(firstword $(_VERSION_ARGS)))
+include ../mk/versions.mk
+DPKG_VERSIONS := $(VERSIONS)
 T ?= runtime
 
-# libmd версия для каждой версии dpkg
-# Переопределение: make docker/image 1.23.5 L=1.2.0
-LIBMD_1.23.5 := 1.1.0
-
-L ?= $(LIBMD_$(V))
+L ?= $(LIBMD_VERSION)
 
 ARTIFACTS_SRC    := artifacts/src
 ARTIFACTS_DEPS   := artifacts/deps
 ARTIFACTS_BUILD  := artifacts/build
 ARTIFACTS_IMAGES := artifacts/images
 
-# Имя файла бинарной зависимости libmd
-_LIBMD_DEP = $(ARTIFACTS_DEPS)/libmd-astra-$(L).tar.gz
+# Имя файла бинарной зависимости (условное — пустое если версия не задана)
+_LIBMD_DEP = $(if $(L),$(ARTIFACTS_DEPS)/libmd-$(L).tar.gz)
 
-# =============================================================================
-# Backend: buildah (по умолчанию) или docker
-# =============================================================================
-BACKEND ?= buildah
+# Список активных deps (пустые автоматически исключаются)
+_ALL_DEPS = $(strip $(_LIBMD_DEP))
 
-ifeq ($(BACKEND),docker)
-  _BUILD   = docker build
-  _RMI     = docker rmi
-  _INSPECT = docker inspect
-  _save    = docker save -o $(2) $(1)
-  _run     = docker run --rm $(1) $(2)
-  _shell   = docker run --rm -it $(1) /bin/bash
-  _extract = id=$$(docker create $(1) true) && docker cp "$$id":/out/. - | gzip > $(2) && docker rm "$$id" > /dev/null
-else
-  _BUILD   = buildah bud
-  _RMI     = buildah rmi
-  _INSPECT = buildah inspect
-  _save    = rm -f $(2) && buildah push $(1) docker-archive:$(2):$(1)
-  _run     = ctr=$$(buildah from $(1)) && buildah run "$$ctr" -- $(2) && buildah rm "$$ctr" > /dev/null
-  _shell   = ctr=$$(buildah from $(1)) && buildah run --tty "$$ctr" -- /bin/bash; buildah rm "$$ctr" > /dev/null 2>&1 || true
-  _extract = ctr=$$(buildah from $(1)) && buildah run "$$ctr" -- tar -cf - -C /out . | gzip > $(2) && buildah rm "$$ctr" > /dev/null
-endif
+include ../mk/backend.mk
+include ../mk/deps.mk
+
+# Правила извлечения зависимостей из Docker-образов
+$(eval $(call dep_rule,libmd,libmd))
 
 # --- Имена образов ---
-image_name   = dpkg-astra:$(1)-build
+image_name   = dpkg:$(1)-build
 runtime_name = dpkg-astra:$(1)-runtime
 
 # --- OCI-лейблы ---
 labels = \
-	--label org.opencontainers.image.title=dpkg-astra \
-	--label org.opencontainers.image.version=$(1)-$(2) \
+	--label org.opencontainers.image.title=$(1) \
+	--label org.opencontainers.image.version=$(2)-$(3) \
 	--label org.opencontainers.image.base.name=$(BASE_IMAGE)
 
 # --- Вычисляемые переменные для текущих V и T ---
 _IMAGE      = $(if $(filter runtime,$(T)),$(call runtime_name,$(V)),$(call image_name,$(V)))
-_DOCKERFILE = $(if $(filter runtime,$(T)),Dockerfile.runtime,Dockerfile)
+_DOCKERFILE = $(if $(filter runtime,$(T)),$(or $(DOCKERFILE_RUNTIME),Dockerfile.runtime),$(or $(DOCKERFILE_BUILD),Dockerfile))
 
 _BUILD_ARGS = $(if $(filter runtime,$(T)),\
   --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg BUILD_IMAGE=$(call image_name,$(V)),\
-  --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg DPKG_VERSION=$(V) --build-arg LIBMD_VERSION=$(L))
+  --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg DPKG_VERSION=$(V) $(if $(L),--build-arg LIBMD_VERSION=$(L)))
 
-_LABELS     = $(call labels,$(V),$(T))
-_TAR_NAME   = dpkg-astra-$(V)-$(T).tar
+_LABELS     = $(call labels,$(if $(filter runtime,$(T)),dpkg-astra,dpkg),$(V),$(T))
+_TAR_NAME   = $(if $(filter runtime,$(T)),dpkg-astra,dpkg)-$(V)-$(T).tar
 _TEST_CMD   = $(if $(filter runtime,$(T)),dpkg --version,sh -c '/out/usr/bin/dpkg --version && (ldd /out/usr/bin/dpkg 2>&1 || echo "static: ok")')
 
 # --- Валидация (внешние зависимости — ошибка если нет) ---
 check_version  = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image 1.23.5)"; echo "Поддерживаемые версии: $(DPKG_VERSIONS)"; exit 1; fi
 check_libmd    = @if [ -z "$(L)" ]; then echo "Ошибка: версия libmd не задана для dpkg $(V)"; echo "Добавьте LIBMD_$(V) := X.Y.Z в Makefile или задайте L=X.Y.Z"; exit 1; fi
 check_src_file = @test -f $(ARTIFACTS_SRC)/dpkg_$(V).tar.xz || (echo "Ошибка: $(ARTIFACTS_SRC)/dpkg_$(V).tar.xz не найден"; echo "Выполните: make download $(V)"; exit 1)
-check_dep_file = @test -f $(_LIBMD_DEP) || (echo "Ошибка: $(_LIBMD_DEP) не найден"; echo "Выполните: make deps $(V)"; exit 1)
-
 # --- Ensure (внутренние зависимости — автосборка если нет) ---
 ensure         = @$(_INSPECT) $(call image_name,$(1)) > /dev/null 2>&1 || $(MAKE) image V=$(1) T=build
 ensure_runtime = @$(_INSPECT) $(call runtime_name,$(1)) > /dev/null 2>&1 || $(MAKE) image V=$(1) T=runtime
@@ -98,9 +75,9 @@ help:
 	@echo ""
 	@echo "  Поддерживаемые версии: $(DPKG_VERSIONS)"
 	@echo "  Типы образов (T): runtime (по умолчанию), build"
-	@echo "  libmd (L):$(foreach v,$(DPKG_VERSIONS), $(v)→$(LIBMD_$(v)))"
+	@echo "  libmd (L): задаётся в versions/<V>.mk"
 	@echo ""
-	@echo "  Зависимости (deps): libmd-astra:<L>-build → artifacts/deps/"
+	@echo "  Зависимости (deps): libmd:<L>-build → artifacts/deps/"
 	@echo ""
 	@echo "  Примеры:"
 	@echo "    make docker/image 1.23.5"
@@ -122,15 +99,8 @@ $(ARTIFACTS_SRC)/dpkg_%.tar.xz:
 # --- Извлечение бинарных зависимостей из Docker-образов ---
 deps:
 	$(call check_version)
-	$(call check_libmd)
-	@$(MAKE) $(_LIBMD_DEP)
-
-$(ARTIFACTS_DEPS)/libmd-astra-%.tar.gz:
-	@$(_INSPECT) libmd-astra:$*-build > /dev/null 2>&1 || \
-	  (echo "Ошибка: образ libmd-astra:$*-build не найден"; \
-	   echo "Сначала соберите: make -C ../libmd docker/image $*"; exit 1)
-	mkdir -p $(ARTIFACTS_DEPS)
-	@$(call _extract,libmd-astra:$*-build,$@)
+	$(if $(L),$(call check_libmd))
+	@$(MAKE) $(_ALL_DEPS)
 
 # =============================================================================
 # Targets (backend выбирается через BACKEND)
@@ -138,9 +108,9 @@ $(ARTIFACTS_DEPS)/libmd-astra-%.tar.gz:
 
 image:
 	$(call check_version)
-	$(if $(filter build,$(T)),$(call check_libmd))
+	$(if $(and $(filter build,$(T)),$(L)),$(call check_libmd))
 	$(if $(filter build,$(T)),$(call check_src_file))
-	$(if $(filter build,$(T)),$(call check_dep_file))
+	$(foreach d,$(_ALL_DEPS),$(if $(filter build,$(T)),$(call check_dep,$(d))))
 	$(if $(filter runtime,$(T)),$(call ensure,$(V)))
 	$(_BUILD) \
 	  $(_BUILD_ARGS) \
@@ -154,7 +124,7 @@ build:
 	$(call check_version)
 	$(call ensure,$(V))
 	mkdir -p $(ARTIFACTS_BUILD)
-	@$(call _extract,$(call image_name,$(V)),$(ARTIFACTS_BUILD)/dpkg-astra-$(V).tar.gz)
+	@$(call _extract,$(call image_name,$(V)),$(ARTIFACTS_BUILD)/dpkg-$(V).tar.gz)
 
 test:
 	$(call check_version)
@@ -173,15 +143,16 @@ clean:
 	  docker rmi $(call image_name,$(V)) 2>/dev/null || true; \
 	  buildah rmi $(call runtime_name,$(V)) 2>/dev/null || true; \
 	  buildah rmi $(call image_name,$(V)) 2>/dev/null || true; \
-	  rm -f $(ARTIFACTS_IMAGES)/dpkg-astra-$(V)-build.tar; \
+	  rm -f $(ARTIFACTS_IMAGES)/dpkg-$(V)-build.tar; \
 	  rm -f $(ARTIFACTS_IMAGES)/dpkg-astra-$(V)-runtime.tar; \
-	  rm -f $(ARTIFACTS_BUILD)/dpkg-astra-$(V).tar.gz; \
+	  rm -f $(ARTIFACTS_BUILD)/dpkg-$(V).tar.gz; \
 	  rm -f $(ARTIFACTS_SRC)/dpkg_$(V).tar.xz; \
-	  rm -f $(ARTIFACTS_DEPS)/libmd-astra-$(L).tar.gz; \
 	else \
 	  for v in $(DPKG_VERSIONS); do $(MAKE) clean V=$$v; done; \
 	  rm -rf $(ARTIFACTS_BUILD) $(ARTIFACTS_IMAGES) $(ARTIFACTS_SRC) $(ARTIFACTS_DEPS); \
 	fi
+	$(foreach d,$(_ALL_DEPS),@rm -f $(d)
+	)
 
 # =============================================================================
 # Namespace shortcuts: make docker/<target> или make buildah/<target>

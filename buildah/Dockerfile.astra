@@ -1,5 +1,5 @@
-# Сборка buildah из исходников со статической компиляцией.
-# Go компилятор подаётся как файловая зависимость из artifacts/deps/ (make deps).
+# Сборка buildah из исходников со статической компиляцией (CGO + static linking).
+# Go компилятор и C-библиотеки подаются как файловые зависимости из artifacts/deps/ (make deps).
 # Результат: /out/usr/bin/buildah (статический бинарник)
 # Использование: COPY --from=buildah-astra:1.38.0-build /out /
 
@@ -9,8 +9,24 @@ FROM ${BASE_IMAGE} AS builder
 
 ARG BUILDAH_VERSION=1.38.0
 ARG GO_VERSION=1.22.6
+ARG DEVMAPPER_VERSION=2.03.25
+ARG BTRFS_VERSION=6.6.3
+ARG SECCOMP_VERSION=2.5.5
+ARG SYSTEMD_VERSION=241
+ARG LIBCAP_VERSION=2.25
+ARG LIBMOUNT_VERSION=2.30.2
+ARG GPG_ERROR_VERSION=1.35
+ARG GCRYPT_VERSION=1.7.6
 
 ENV DEBIAN_FRONTEND=noninteractive
+
+# C-компилятор и линковщик для CGO
+RUN apt-get update \
+    && apt-get install -y \
+        gcc \
+        libc6-dev \
+        pkg-config \
+ && rm -rf /var/lib/apt/lists/*
 
 # Go компилятор из отдельного проекта (make deps)
 COPY artifacts/deps/golang-astra-${GO_VERSION}.tar.gz /build/
@@ -19,6 +35,40 @@ RUN tar xzf /build/golang-astra-${GO_VERSION}.tar.gz -C / \
 
 ENV GOROOT=/usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
+
+# C-библиотеки для статической линковки (make deps)
+COPY artifacts/deps/libdevmapper-astra-${DEVMAPPER_VERSION}.tar.gz /build/
+RUN tar xzf /build/libdevmapper-astra-${DEVMAPPER_VERSION}.tar.gz -C / \
+ && rm /build/libdevmapper-astra-${DEVMAPPER_VERSION}.tar.gz
+
+COPY artifacts/deps/libbtrfs-astra-${BTRFS_VERSION}.tar.gz /build/
+RUN tar xzf /build/libbtrfs-astra-${BTRFS_VERSION}.tar.gz -C / \
+ && rm /build/libbtrfs-astra-${BTRFS_VERSION}.tar.gz
+
+COPY artifacts/deps/libseccomp-astra-${SECCOMP_VERSION}.tar.gz /build/
+RUN tar xzf /build/libseccomp-astra-${SECCOMP_VERSION}.tar.gz -C / \
+ && rm /build/libseccomp-astra-${SECCOMP_VERSION}.tar.gz
+
+COPY artifacts/deps/libsystemd-astra-${SYSTEMD_VERSION}.tar.gz /build/
+RUN tar xzf /build/libsystemd-astra-${SYSTEMD_VERSION}.tar.gz -C / \
+ && rm /build/libsystemd-astra-${SYSTEMD_VERSION}.tar.gz
+
+# Транзитивные C-зависимости для статической линковки (make deps)
+COPY artifacts/deps/libcap-astra-${LIBCAP_VERSION}.tar.gz /build/
+RUN tar xzf /build/libcap-astra-${LIBCAP_VERSION}.tar.gz -C / \
+ && rm /build/libcap-astra-${LIBCAP_VERSION}.tar.gz
+
+COPY artifacts/deps/libmount-astra-${LIBMOUNT_VERSION}.tar.gz /build/
+RUN tar xzf /build/libmount-astra-${LIBMOUNT_VERSION}.tar.gz -C / \
+ && rm /build/libmount-astra-${LIBMOUNT_VERSION}.tar.gz
+
+COPY artifacts/deps/libgpg-error-astra-${GPG_ERROR_VERSION}.tar.gz /build/
+RUN tar xzf /build/libgpg-error-astra-${GPG_ERROR_VERSION}.tar.gz -C / \
+ && rm /build/libgpg-error-astra-${GPG_ERROR_VERSION}.tar.gz
+
+COPY artifacts/deps/libgcrypt-astra-${GCRYPT_VERSION}.tar.gz /build/
+RUN tar xzf /build/libgcrypt-astra-${GCRYPT_VERSION}.tar.gz -C / \
+ && rm /build/libgcrypt-astra-${GCRYPT_VERSION}.tar.gz
 
 WORKDIR /build
 
@@ -34,17 +84,21 @@ WORKDIR /build/buildah
 ENV GOTMPDIR=/build/tmp
 ENV GOCACHE=/build/cache
 
-# Полностью статическая сборка без CGO.
+# Статическая сборка с CGO.
+# CGO_ENABLED=1 — включает C-биндинги для libseccomp, libdevmapper, libbtrfs, libsystemd.
 # Build tags:
+#   seccomp — поддержка seccomp-фильтрации syscall
+#   systemd — интеграция с journald и systemd cgroup manager
 #   containers_image_openpgp — Go-реализация OpenPGP вместо libgpgme (C)
-#   exclude_graphdriver_devicemapper — без device mapper (требует libdevmapper)
-#   exclude_graphdriver_btrfs — без btrfs (требует libbtrfs)
+# Линковка: -linkmode=external -extldflags "-static" — полностью статический бинарник.
 RUN mkdir -p /build/tmp /build/cache && \
-    CGO_ENABLED=0 \
+    CGO_ENABLED=1 \
+    CGO_CFLAGS="-I/usr/include" \
+    CGO_LDFLAGS="-L/usr/lib" \
     go build \
       -mod=vendor \
-      -tags "exclude_graphdriver_devicemapper exclude_graphdriver_btrfs containers_image_openpgp" \
-      -ldflags '-s -w' \
+      -tags "seccomp systemd containers_image_openpgp" \
+      -ldflags '-s -w -linkmode=external -extldflags "-static"' \
       -o /out/usr/bin/buildah \
       ./cmd/buildah
 

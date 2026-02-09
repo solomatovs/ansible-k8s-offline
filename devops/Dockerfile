@@ -1,10 +1,11 @@
 # DevOps-образ: rootless buildah + dpkg + golang на Astra Linux.
 # Объединяет артефакты из проектов dpkg/, buildah/ и golang/.
+# Бинарные зависимости подаются как файлы из artifacts/deps/ (make deps).
 #
-# Зависимости (должны быть собраны до сборки этого образа):
-#   - dpkg-astra:1.23.5-build      (make -C dpkg build)
-#   - buildah-astra:v1.38.0-build   (make -C buildah build-astra)
-#   - golang-astra:go1.24.5-build   (make -C golang build-latest)
+# Зависимости (должны быть извлечены до сборки: make deps):
+#   - artifacts/deps/dpkg-astra-1.23.5.tar.gz
+#   - artifacts/deps/buildah-astra-1.38.0.tar.gz
+#   - artifacts/deps/golang-astra-1.24.5.tar.gz
 #
 # Образ не привязан к конкретному пользователю —
 # можно запустить под любым uid если смонтировать:
@@ -12,26 +13,33 @@
 #   - /etc/subuid и /etc/subgid с split-диапазонами (пропустить собственный uid)
 
 ARG BASE_IMAGE=astra-linux:2.12
-ARG DPKG_IMAGE=dpkg-astra:1.23.5-build
-ARG BUILDAH_IMAGE=buildah-astra:v1.38.0-build
-ARG GO_IMAGE=golang-astra:go1.24.5-build
-
-FROM ${DPKG_IMAGE} AS dpkg
-FROM ${BUILDAH_IMAGE} AS buildah
-FROM ${GO_IMAGE} AS golang
+ARG DPKG_VERSION=1.23.5
+ARG BUILDAH_VERSION=1.38.0
+ARG GO_VERSION=1.24.5
 
 FROM ${BASE_IMAGE}
+
+ARG DPKG_VERSION
+ARG BUILDAH_VERSION
+ARG GO_VERSION
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # --- dpkg (rootless-патченный, статические бинарники) ---
-COPY --from=dpkg /out /
+COPY artifacts/deps/dpkg-astra-${DPKG_VERSION}.tar.gz /build/
+RUN tar xzf /build/dpkg-astra-${DPKG_VERSION}.tar.gz -C / \
+ && rm /build/dpkg-astra-${DPKG_VERSION}.tar.gz
 
 # --- buildah (статический бинарник) ---
-COPY --from=buildah /out/usr/bin/buildah /usr/bin/buildah
+COPY artifacts/deps/buildah-astra-${BUILDAH_VERSION}.tar.gz /build/
+RUN tar xzf /build/buildah-astra-${BUILDAH_VERSION}.tar.gz -C / \
+ && rm /build/buildah-astra-${BUILDAH_VERSION}.tar.gz
 
 # --- golang ---
-COPY --from=golang /out/usr/local/go /usr/local/go
+COPY artifacts/deps/golang-astra-${GO_VERSION}.tar.gz /build/
+RUN tar xzf /build/golang-astra-${GO_VERSION}.tar.gz -C / \
+ && rm /build/golang-astra-${GO_VERSION}.tar.gz
+
 ENV PATH="/usr/local/go/bin:${PATH}"
 
 # --- Runtime-зависимости ---
@@ -71,10 +79,38 @@ RUN mkdir -p /var/lib/shared/overlay-images \
 # /home               — HOME для любого UID
 # /run/containers     — runroot buildah (runtime/lock-файлы)
 # /var/lib/containers — graphroot buildah (образы и слои)
+# /var/lib/dpkg/*     — dpkg-база (status, info, updates, triggers)
+# /var/cache/apt/*    — кэш скачанных пакетов
+# /var/lib/apt/*      — списки пакетов и состояние
+# /var/log, /var/log/apt — логи dpkg и apt
 RUN mkdir -p /var/lib/containers/storage /run/containers/storage \
+             /var/cache/apt/archives/partial \
+             /var/lib/apt/lists/partial \
+             /var/log/apt \
  && chmod 1777 /home \
                /run/containers /run/containers/storage \
-               /var/lib/containers /var/lib/containers/storage
+               /var/lib/containers /var/lib/containers/storage \
+               /var/lib/dpkg \
+               /var/lib/dpkg/info \
+               /var/lib/dpkg/updates \
+               /var/lib/dpkg/triggers \
+               /var/cache/apt \
+               /var/cache/apt/archives \
+               /var/cache/apt/archives/partial \
+               /var/lib/apt \
+               /var/lib/apt/lists \
+               /var/lib/apt/lists/partial \
+               /var/log \
+               /var/log/apt \
+ && chmod a+rw /var/lib/dpkg/status \
+               /var/lib/dpkg/available \
+ && find /var/lib/dpkg/info -type f -exec chmod a+rw {} + \
+ && touch /var/lib/apt/extended_states \
+ && chmod a+rw /var/lib/apt/extended_states
+
+# apt: отключить sandbox-переключение на пользователя _apt при скачивании.
+# Без root apt не может переключиться на _apt — скачивание будет от текущего uid.
+RUN printf 'APT::Sandbox::User "root";\n' > /etc/apt/apt.conf.d/99-rootless
 
 # File capabilities вместо setuid-бита (стандартный подход для rootless buildah)
 RUN setcap cap_setuid+ep /usr/bin/newuidmap \
@@ -83,6 +119,8 @@ RUN setcap cap_setuid+ep /usr/bin/newuidmap \
 
 # subuid/subgid очищаем — правильные значения монтируются при запуске контейнера
 RUN : > /etc/subuid && : > /etc/subgid
+
+RUN rm -rf /build
 
 ENV HOME=/home
 ENV LANG=C.UTF-8

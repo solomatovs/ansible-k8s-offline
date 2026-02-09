@@ -1,69 +1,86 @@
 -include config.local.mk
 -include config.mk
 
-BASE_IMAGE     := astra-linux:2.12
+BASE_IMAGE            := astra-linux:2.12
 include ../mk/versions.mk
-LIBMD_VERSIONS := $(VERSIONS)
+UTIL_LINUX_VERSIONS := $(VERSIONS)
 ARTIFACTS_SRC    := artifacts/src
 ARTIFACTS_BUILD  := artifacts/build
 ARTIFACTS_IMAGES := artifacts/images
 
+UTIL_LINUX_ARCHIVE_URL = $(GITHUB_URL)/util-linux/util-linux/archive/refs/tags
+
 include ../mk/backend.mk
 
 # --- Имена образов ---
-image_name = libmd:$(1)-build
+image_name = libmount:$(1)-build
 
 # --- OCI-лейблы ---
 labels = \
-	--label org.opencontainers.image.title=libmd \
+	--label org.opencontainers.image.title=libmount \
 	--label org.opencontainers.image.version=$(1)-build \
 	--label org.opencontainers.image.base.name=$(BASE_IMAGE)
 
 # --- Вычисляемые переменные ---
 _IMAGE      = $(call image_name,$(V))
-_BUILD_ARGS = --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg LIBMD_VERSION=$(V)
+_BUILD_ARGS = --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg UTIL_LINUX_VERSION=$(V)
 _LABELS     = $(call labels,$(V))
-_TAR_NAME   = libmd-$(V)-build.tar
-_TEST_CMD   = sh -c 'test -f /out/usr/lib/libmd.a && test -f /out/usr/include/md5.h && ls -lh /out/usr/lib/libmd.a && echo "libmd build: ok"'
+_TAR_NAME   = libmount-$(V)-build.tar
+_TEST_CMD   = sh -c '\
+	echo "=== files ===" && \
+	test -f /out/usr/lib/libmount.a && \
+	test -f /out/usr/lib/libblkid.a && \
+	test -f /out/usr/lib/libuuid.a && \
+	test -f /out/usr/lib/pkgconfig/mount.pc && \
+	test -f /out/usr/lib/pkgconfig/blkid.pc && \
+	test -f /out/usr/lib/pkgconfig/uuid.pc && \
+	ls -lh /out/usr/lib/libmount.a /out/usr/lib/libblkid.a /out/usr/lib/libuuid.a && \
+	echo "=== file type ===" && \
+	head -c 7 /out/usr/lib/libmount.a && echo "" && \
+	echo "=== no .so files ===" && \
+	(find /out -name "*.so*" | grep . && echo "FAIL: shared libraries found" && exit 1 || echo "ok: no shared libraries") && \
+	echo "=== pkg-config ===" && \
+	cat /out/usr/lib/pkgconfig/mount.pc && \
+	echo "" && echo "libmount build: ok"'
 
 # --- Валидация и ensure ---
-check_version = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image 1.1.0)"; echo "Поддерживаемые версии: $(LIBMD_VERSIONS)"; exit 1; fi
+check_version  = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image 2.30.2)"; echo "Поддерживаемые версии: $(UTIL_LINUX_VERSIONS)"; exit 1; fi
+check_src_file = @test -f $(ARTIFACTS_SRC)/util-linux-$(V).tar.gz || (echo "Ошибка: $(ARTIFACTS_SRC)/util-linux-$(V).tar.gz не найден"; echo "Выполните: make download $(V)"; exit 1)
 
 ensure = @$(_INSPECT) $(call image_name,$(1)) > /dev/null 2>&1 || $(MAKE) image V=$(1)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help download image build test shell clean $(LIBMD_VERSIONS)
+.PHONY: help download image build test shell clean $(UTIL_LINUX_VERSIONS)
 
 help:
 	@echo "Usage: make docker/<target>    (на хосте, через Docker)"
 	@echo "       make buildah/<target>   (внутри devcontainer, через Buildah)"
 	@echo ""
 	@echo "Targets:"
-	@echo "  download  X.Y.Z            Скачать исходники libmd (требует интернет)"
+	@echo "  download  X.Y.Z            Скачать исходники util-linux (требует интернет)"
 	@echo "  image     X.Y.Z            Собрать образ и экспортировать в artifacts/images/"
 	@echo "  build     X.Y.Z            Архивировать артефакты в artifacts/build/"
-	@echo "  test      X.Y.Z            Проверить libmd.a и заголовки"
+	@echo "  test      X.Y.Z            Проверить libmount.a, libblkid.a и заголовки"
 	@echo "  shell     X.Y.Z            Shell в образе"
 	@echo "  clean     X.Y.Z            Удалить образы и артефакты версии"
 	@echo "  clean                      Удалить все образы и артефакты"
 	@echo ""
-	@echo "  Поддерживаемые версии: $(LIBMD_VERSIONS)"
+	@echo "  Поддерживаемые версии: $(UTIL_LINUX_VERSIONS)"
 	@echo ""
 	@echo "  Примеры:"
-	@echo "    make docker/image 1.1.0"
-	@echo "    make docker/build 1.1.0"
-	@echo "    make docker/test  1.1.0"
-	@echo "    make docker/clean 1.1.0"
+	@echo "    make docker/image 2.30.2"
+	@echo "    make docker/build 2.30.2"
+	@echo "    make docker/test  2.30.2"
 
 # --- Скачивание исходников ---
 download:
 	$(call check_version)
-	@$(MAKE) $(ARTIFACTS_SRC)/libmd-$(V).tar.xz
+	@$(MAKE) $(ARTIFACTS_SRC)/util-linux-$(V).tar.gz
 
-$(ARTIFACTS_SRC)/libmd-%.tar.xz:
+$(ARTIFACTS_SRC)/util-linux-%.tar.gz:
 	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(HADRONS_MIRROR)/software/libmd/libmd-$*.tar.xz
+	curl -fSL -o $@ $(UTIL_LINUX_ARCHIVE_URL)/v$*.tar.gz
 
 # =============================================================================
 # Targets (backend выбирается через BACKEND)
@@ -71,7 +88,7 @@ $(ARTIFACTS_SRC)/libmd-%.tar.xz:
 
 image:
 	$(call check_version)
-	@$(MAKE) $(ARTIFACTS_SRC)/libmd-$(V).tar.xz
+	$(call check_src_file)
 	$(_BUILD) \
 	  $(_BUILD_ARGS) \
 	  $(_LABELS) \
@@ -84,7 +101,7 @@ build:
 	$(call check_version)
 	$(call ensure,$(V))
 	mkdir -p $(ARTIFACTS_BUILD)
-	@$(call _extract,$(call image_name,$(V)),$(ARTIFACTS_BUILD)/libmd-$(V).tar.gz)
+	@$(call _extract,$(call image_name,$(V)),$(ARTIFACTS_BUILD)/libmount-$(V).tar.gz)
 
 test:
 	$(call check_version)
@@ -101,11 +118,11 @@ clean:
 	@if [ -n "$(V)" ]; then \
 	  docker rmi $(call image_name,$(V)) 2>/dev/null || true; \
 	  buildah rmi $(call image_name,$(V)) 2>/dev/null || true; \
-	  rm -f $(ARTIFACTS_IMAGES)/libmd-$(V)-build.tar; \
-	  rm -f $(ARTIFACTS_BUILD)/libmd-$(V).tar.gz; \
-	  rm -f $(ARTIFACTS_SRC)/libmd-$(V).tar.xz; \
+	  rm -f $(ARTIFACTS_IMAGES)/libmount-$(V)-build.tar; \
+	  rm -f $(ARTIFACTS_BUILD)/libmount-$(V).tar.gz; \
+	  rm -f $(ARTIFACTS_SRC)/util-linux-$(V).tar.gz; \
 	else \
-	  for v in $(LIBMD_VERSIONS); do $(MAKE) clean V=$$v; done; \
+	  for v in $(UTIL_LINUX_VERSIONS); do $(MAKE) clean V=$$v; done; \
 	  rm -rf $(ARTIFACTS_BUILD) $(ARTIFACTS_IMAGES) $(ARTIFACTS_SRC); \
 	fi
 
@@ -118,6 +135,6 @@ docker/%:
 buildah/%:
 	@$(MAKE) $* BACKEND=buildah $(if $(V),V=$(V))
 
-# Catch-all: версия как цель (например, make docker/image 1.1.0)
-$(LIBMD_VERSIONS):
+# Catch-all: версия как цель
+$(UTIL_LINUX_VERSIONS):
 	@:

@@ -1,0 +1,4 @@
+# config.local.mk — локальные переопределения (не коммитится в git)
+# Скопировать: cp config.local.mk.example config.local.mk
+
+# KERNEL_URL := https://nexus.corp.local/repository/kernel-proxy

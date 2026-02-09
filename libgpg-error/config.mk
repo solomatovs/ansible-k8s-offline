@@ -1,0 +1,5 @@
+# config.mk — настройки по умолчанию
+# Переопределить: создать config.local.mk или задать переменные окружения.
+# Подробнее: см. config.local.mk.example
+
+GNUPG_FTP_URL ?= https://gnupg.org/ftp/gcrypt
