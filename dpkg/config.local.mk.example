@@ -1,5 +1,4 @@
 # config.local.mk — локальные переопределения (не коммитится в git)
 # Скопировать: cp config.local.mk.example config.local.mk
 
-# DEBIAN_MIRROR  := http://nexus.corp.local/repository/debian
-# HADRONS_MIRROR := https://nexus.corp.local/repository/hadrons-proxy
+# DEBIAN_MIRROR := http://nexus.corp.local/repository/debian

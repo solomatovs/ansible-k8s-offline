@@ -20,22 +20,18 @@ RUN apt-get update \
         libbz2-dev \
         liblzma-dev \
         libzstd-dev \
-        # libmd-dev — отсутствует в Astra Linux, собираем из исходников ниже
         perl \
  && rm -rf /var/lib/apt/lists/*
 
+# libmd — статическая библиотека из отдельного проекта (make deps)
+COPY artifacts/deps/libmd-astra-${LIBMD_VERSION}.tar.gz /build/
+RUN tar xzf /build/libmd-astra-${LIBMD_VERSION}.tar.gz -C / \
+ && rm /build/libmd-astra-${LIBMD_VERSION}.tar.gz
+
 WORKDIR /build
 
-# Копируем предварительно скачанные артефакты (make download)
-COPY artifacts/src/libmd-${LIBMD_VERSION}.tar.xz /build/
+# Копируем предварительно скачанные исходники dpkg (make download)
 COPY artifacts/src/dpkg_${DPKG_VERSION}.tar.xz /build/
-
-# Сборка libmd из исходников (static-only: нужна только libmd.a)
-RUN tar -xf libmd-${LIBMD_VERSION}.tar.xz \
- && cd libmd-${LIBMD_VERSION} \
- && ./configure --prefix=/usr --enable-static --disable-shared \
- && make -j$(nproc) \
- && make install
 
 RUN tar -xf dpkg_${DPKG_VERSION}.tar.xz
 
