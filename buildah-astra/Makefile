@@ -73,11 +73,11 @@ shell: build-runtime
 	buildah run --tty "$$ctr" -- /bin/bash; \
 	buildah rm "$$ctr" > /dev/null 2>&1 || true
 
-# --- Экспорт образов из buildah в docker-archive (для загрузки в Docker на хосте) ---
-export: ensure
+# --- Экспорт готового runtime-образа из buildah в docker-archive ---
+# Экспортируем собранный образ целиком, чтобы Docker на хосте не собирал Dockerfile.
+export: ensure-runtime
 	mkdir -p $(EXPORT_DIR)
-	buildah push $(BASE_IMAGE) docker-archive:$(EXPORT_DIR)/base-image.tar:$(BASE_IMAGE)
-	buildah push $(IMAGE_NAME) docker-archive:$(EXPORT_DIR)/buildah.tar:$(IMAGE_NAME)
+	buildah push $(RUNTIME_IMAGE_NAME) docker-archive:$(EXPORT_DIR)/runtime.tar:$(RUNTIME_IMAGE_NAME)
 
 clean:
 	@buildah rmi $(RUNTIME_IMAGE_NAME) 2>/dev/null || true

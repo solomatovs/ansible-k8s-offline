@@ -1,19 +1,12 @@
 {
   "name": "buildah-astra-rootless",
 
-  // Загрузка образов из buildah в Docker перед сборкой devcontainer.
-  // Образы экспортируются командой: make -C buildah-astra export (внутри buildah-debian devcontainer)
+  // Загрузка готового runtime-образа из buildah в Docker перед стартом devcontainer.
+  // Экспорт: make -C buildah-astra export (внутри buildah-debian devcontainer)
   "initializeCommand": "for f in buildah-astra/.docker-export/*.tar; do [ -f \"$f\" ] && docker load -i \"$f\"; done",
 
-  "build": {
-    "dockerfile": "${localWorkspaceFolder}/buildah-astra/Dockerfile.runtime",
-    "context": "${localWorkspaceFolder}/buildah-astra",
-    // Docker не поддерживает registries.conf — нужен localhost/ для локальных образов
-    "args": {
-      "BASE_IMAGE": "localhost/astra-linux:2.12",
-      "BUILDAH_IMAGE": "localhost/buildah:local"
-    }
-  },
+  // Готовый образ из buildah — Docker не собирает Dockerfile, поэтому --pull не мешает.
+  "image": "buildah-rootless:local",
 
   "mounts": [
     // passwd, group, subuid, subgid
