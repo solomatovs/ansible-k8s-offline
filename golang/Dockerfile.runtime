@@ -1,5 +1,5 @@
 # Runtime-образ Go: компилятор установлен в систему (/usr/local/go).
-# Использование: FROM golang-astra:go1.24.5-runtime
+# Использование: FROM golang-astra:1.24.5-runtime
 
 ARG BUILD_IMAGE
 ARG BASE_IMAGE=astra-linux:2.12

@@ -6,18 +6,18 @@ GO_PROXY_URL  ?= $(GOPROXY_URL)
 IMAGE_NAME    := golang-astra
 BASE_IMAGE    := astra-linux:2.12
 
-# Цепочка bootstrap: go1.4 → go1.17.13 → go1.20.6 → go1.22.6 → go1.24.5
+# Цепочка bootstrap: 1.4 → 1.17.13 → 1.20.6 → 1.22.6 → 1.24.5
 # Каждая версия собирается предыдущей.
-GO_VERSIONS := go1.4 go1.17.13 go1.20.6 go1.22.6 go1.24.5
+GO_VERSIONS := 1.4 1.17.13 1.20.6 1.22.6 1.24.5
 
 # Bootstrap-зависимости (предыдущая версия для сборки)
-BOOTSTRAP_go1.17.13 := go1.4
-BOOTSTRAP_go1.20.6  := go1.17.13
-BOOTSTRAP_go1.22.6  := go1.20.6
-BOOTSTRAP_go1.24.5  := go1.22.6
+BOOTSTRAP_1.17.13 := 1.4
+BOOTSTRAP_1.20.6  := 1.17.13
+BOOTSTRAP_1.22.6  := 1.20.6
+BOOTSTRAP_1.24.5  := 1.22.6
 
-# Версия из командной строки: make docker/image go1.22.6
-_VERSION_ARGS := $(filter go%,$(MAKECMDGOALS))
+# Версия из командной строки: make docker/image 1.22.6
+_VERSION_ARGS := $(filter $(GO_VERSIONS),$(MAKECMDGOALS))
 V := $(or $(V),$(firstword $(_VERSION_ARGS)))
 T ?= runtime
 
@@ -65,7 +65,7 @@ labels = \
 	--label org.opencontainers.image.base.name=$(BASE_IMAGE)
 
 # --- Валидация (внешние зависимости — ошибка если нет) ---
-check_version  = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image go1.22.6)"; echo "Поддерживаемые версии: $(GO_VERSIONS)"; exit 1; fi
+check_version  = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image 1.22.6)"; echo "Поддерживаемые версии: $(GO_VERSIONS)"; exit 1; fi
 check_src_file = @test -f $(ARTIFACTS_SRC)/golang-$(V).tar.gz || (echo "Ошибка: $(ARTIFACTS_SRC)/golang-$(V).tar.gz не найден"; echo "Выполните: make download $(V)"; exit 1)
 
 # --- Ensure (внутренние зависимости — автосборка если нет) ---
@@ -84,7 +84,7 @@ _BUILD_ARGS = $(if $(filter runtime,$(T)),\
 _LABELS     = $(call labels,$(V),$(T))
 _TAR_NAME   = $(IMAGE_NAME)-$(V)-$(T).tar
 
-_BUILD_TEST_CMD = $(if $(filter go1.4,$(V)),sh -c 'GOROOT=/out/usr/local/go /out/usr/local/go/bin/go version',/out/usr/local/go/bin/go version)
+_BUILD_TEST_CMD = $(if $(filter 1.4,$(V)),sh -c 'GOROOT=/out/usr/local/go /out/usr/local/go/bin/go version',/out/usr/local/go/bin/go version)
 _TEST_CMD       = $(if $(filter runtime,$(T)),go version,$(_BUILD_TEST_CMD))
 
 .DEFAULT_GOAL := help
@@ -96,25 +96,25 @@ help:
 	@echo "       make buildah/<target>   (внутри devcontainer, через Buildah)"
 	@echo ""
 	@echo "Targets:"
-	@echo "  download  goX.Y             Скачать исходники Go (требует интернет)"
-	@echo "  image     goX.Y [T=type]    Собрать образ и экспортировать в artifacts/images/"
-	@echo "  build     goX.Y             Архивировать скомпилированный Go в artifacts/build/"
-	@echo "  test      goX.Y [T=type]    Проверить go version"
-	@echo "  shell     goX.Y [T=type]    Shell в образе"
-	@echo "  clean     goX.Y             Удалить образы и артефакты версии"
+	@echo "  download  X.Y.Z             Скачать исходники Go (требует интернет)"
+	@echo "  image     X.Y.Z [T=type]    Собрать образ и экспортировать в artifacts/images/"
+	@echo "  build     X.Y.Z             Архивировать скомпилированный Go в artifacts/build/"
+	@echo "  test      X.Y.Z [T=type]    Проверить go version"
+	@echo "  shell     X.Y.Z [T=type]    Shell в образе"
+	@echo "  clean     X.Y.Z             Удалить образы и артефакты версии"
 	@echo "  clean                       Удалить все образы и артефакты"
 	@echo ""
 	@echo "  Поддерживаемые версии: $(GO_VERSIONS)"
 	@echo "  Типы образов (T): runtime (по умолчанию), build"
 	@echo ""
-	@echo "  Цепочка bootstrap: go1.4 → go1.17.13 → go1.20.6 → go1.22.6 → go1.24.5"
+	@echo "  Цепочка bootstrap: 1.4 → 1.17.13 → 1.20.6 → 1.22.6 → 1.24.5"
 	@echo ""
 	@echo "  Примеры:"
-	@echo "    make docker/image go1.24.5"
-	@echo "    make docker/image go1.24.5 T=runtime"
-	@echo "    make docker/test  go1.22.6"
-	@echo "    make docker/build go1.22.6"
-	@echo "    make docker/clean go1.22.6"
+	@echo "    make docker/image 1.24.5"
+	@echo "    make docker/image 1.24.5 T=runtime"
+	@echo "    make docker/test  1.22.6"
+	@echo "    make docker/build 1.22.6"
+	@echo "    make docker/clean 1.22.6"
 
 # --- Скачивание исходников ---
 download:
@@ -123,7 +123,7 @@ download:
 
 $(ARTIFACTS_SRC)/golang-%.tar.gz:
 	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(GO_ARCHIVE_URL)/$*.tar.gz
+	curl -fSL -o $@ $(GO_ARCHIVE_URL)/go$*.tar.gz
 
 # =============================================================================
 # Targets (backend выбирается через BACKEND)
@@ -183,6 +183,6 @@ docker/%:
 buildah/%:
 	@$(MAKE) $* BACKEND=buildah $(if $(V),V=$(V)) T=$(T)
 
-# Catch-all: версия как цель (например, make docker/image go1.22.6)
-go%:
+# Catch-all: версия как цель (например, make docker/image 1.22.6)
+$(GO_VERSIONS):
 	@:

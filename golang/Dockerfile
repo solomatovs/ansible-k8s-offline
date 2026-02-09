@@ -1,7 +1,7 @@
 # Сборка Go компилятора из исходников с использованием bootstrap-версии Go.
 # Каждая версия Go собирается предыдущей версией из цепочки bootstrap.
 # Результат: /out/usr/local/go/{bin,pkg,src}
-# Использование: COPY --from=golang-astra:go1.24.5-build /out /
+# Использование: COPY --from=golang-astra:1.24.5-build /out /
 
 ARG BOOTSTRAP_IMAGE
 ARG BASE_IMAGE=astra-linux:2.12
