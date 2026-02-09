@@ -10,6 +10,7 @@ V := $(or $(V),$(firstword $(_VERSION_ARGS)))
 T ?= runtime
 
 ARTIFACTS_SRC    := artifacts/src
+ARTIFACTS_DEPS   := artifacts/deps
 ARTIFACTS_BUILD  := artifacts/build
 ARTIFACTS_IMAGES := artifacts/images
 
@@ -49,14 +50,15 @@ GO_1.43.0 := 1.24.5
 
 G ?= $(GO_$(V))
 
-ASTRA_GO_IMAGE = golang-astra:$(G)-build
+# Имя файла бинарной зависимости golang
+_GO_DEP = $(ARTIFACTS_DEPS)/golang-astra-$(G).tar.gz
 
 astra_build_name   = buildah-astra:$(1)-build
 astra_runtime_name = buildah-astra:$(1)-runtime
 
 astra_build_args = \
 	--build-arg BASE_IMAGE=$(ASTRA_BASE_IMAGE) \
-	--build-arg GO_IMAGE=$(ASTRA_GO_IMAGE) \
+	--build-arg GO_VERSION=$(G) \
 	--build-arg BUILDAH_VERSION=$(1)
 
 astra_runtime_build_args = \
@@ -90,6 +92,7 @@ DEBIAN_LABELS := \
 check_version  = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image-astra 1.38.0)"; echo "Поддерживаемые версии: $(BUILDAH_VERSIONS)"; exit 1; fi
 check_go       = @if [ -z "$(G)" ]; then echo "Ошибка: Go-компилятор не задан для версии $(V)"; echo "Добавьте GO_$(V) := X.Y.Z в Makefile или задайте G=X.Y.Z"; exit 1; fi
 check_src_file = @test -f $(ARTIFACTS_SRC)/buildah-$(V).tar.gz || (echo "Ошибка: $(ARTIFACTS_SRC)/buildah-$(V).tar.gz не найден"; echo "Выполните: make download $(V)"; exit 1)
+check_dep_file = @test -f $(_GO_DEP) || (echo "Ошибка: $(_GO_DEP) не найден"; echo "Выполните: make deps $(V)"; exit 1)
 
 # --- Ensure (внутренние зависимости — автосборка если нет) ---
 ensure_astra         = @$(_INSPECT) $(call astra_build_name,$(1)) > /dev/null 2>&1 || $(MAKE) image-astra V=$(1) T=build
@@ -98,7 +101,7 @@ ensure_debian        = @$(_INSPECT) $(DEBIAN_RUNTIME_IMAGE) > /dev/null 2>&1 || 
 
 .DEFAULT_GOAL := help
 
-.PHONY: help download \
+.PHONY: help download deps \
         image-astra build-astra test-astra shell-astra clean-astra \
         image-debian test-debian shell-debian clean-debian \
         clean
@@ -109,6 +112,7 @@ help:
 	@echo ""
 	@echo "Astra Linux (сборка из исходников):"
 	@echo "  download     X.Y.Z                   Скачать исходники buildah (требует интернет)"
+	@echo "  deps         X.Y.Z [G=comp]          Извлечь бинарные зависимости из Docker-образов в artifacts/deps/"
 	@echo "  image-astra  X.Y.Z [T=type] [G=comp] Собрать образ и экспортировать в artifacts/images/"
 	@echo "  build-astra  X.Y.Z [G=comp]          Архивировать артефакты в artifacts/build/"
 	@echo "  test-astra   X.Y.Z [T=type]          Проверить buildah version"
@@ -119,10 +123,13 @@ help:
 	@echo "  Типы образов (T): runtime (по умолчанию), build"
 	@echo "  Go-компилятор (G):$(foreach v,$(BUILDAH_VERSIONS), $(v)→$(GO_$(v)))"
 	@echo ""
+	@echo "  Зависимости (deps): golang-astra:<G>-build → artifacts/deps/"
+	@echo ""
 	@echo "  Примеры:"
-	@echo "    make docker/image-astra 1.38.0"
+	@echo "    make docker/download 1.38.0"
+	@echo "    make docker/deps     1.38.0"
 	@echo "    make docker/image-astra 1.38.0 T=build"
-	@echo "    make docker/image-astra 1.43.0"
+	@echo "    make docker/image-astra 1.38.0"
 	@echo "    make docker/image-astra 1.38.0 G=1.24.5"
 	@echo ""
 	@echo "Debian (установка из пакетов):"
@@ -147,6 +154,19 @@ $(ARTIFACTS_SRC)/buildah-%.tar.gz:
 	mkdir -p $(ARTIFACTS_SRC)
 	curl -fSL -o $@ $(BUILDAH_ARCHIVE_URL)/v$*.tar.gz
 
+# --- Извлечение бинарных зависимостей из Docker-образов ---
+deps:
+	$(call check_version)
+	$(call check_go)
+	@$(MAKE) $(_GO_DEP)
+
+$(ARTIFACTS_DEPS)/golang-astra-%.tar.gz:
+	@$(_INSPECT) golang-astra:$*-build > /dev/null 2>&1 || \
+	  (echo "Ошибка: образ golang-astra:$*-build не найден"; \
+	   echo "Сначала соберите: make -C ../golang docker/image $*"; exit 1)
+	mkdir -p $(ARTIFACTS_DEPS)
+	@$(call _extract,golang-astra:$*-build,$@)
+
 # =============================================================================
 # Targets (backend выбирается через BACKEND)
 # =============================================================================
@@ -156,6 +176,7 @@ image-astra:
 	$(call check_version)
 	$(if $(filter build,$(T)),$(call check_go))
 	$(if $(filter build,$(T)),$(call check_src_file))
+	$(if $(filter build,$(T)),$(call check_dep_file))
 	$(if $(filter runtime,$(T)),$(call ensure_astra,$(V)))
 	$(_BUILD) \
 	  $(_ASTRA_BUILD_ARGS) \
@@ -192,6 +213,7 @@ clean-astra:
 	@rm -f $(ARTIFACTS_IMAGES)/buildah-astra-$(V)-runtime.tar
 	@rm -f $(ARTIFACTS_BUILD)/buildah-astra-$(V).tar.gz
 	@rm -f $(ARTIFACTS_SRC)/buildah-$(V).tar.gz
+	@rm -f $(ARTIFACTS_DEPS)/golang-astra-$(G).tar.gz
 
 # --- Debian ---
 image-debian:
@@ -221,7 +243,7 @@ clean-debian:
 clean:
 	@for v in $(BUILDAH_VERSIONS); do $(MAKE) clean-astra V=$$v; done
 	@$(MAKE) clean-debian
-	@rm -rf $(ARTIFACTS_BUILD) $(ARTIFACTS_IMAGES) $(ARTIFACTS_SRC)
+	@rm -rf $(ARTIFACTS_BUILD) $(ARTIFACTS_IMAGES) $(ARTIFACTS_SRC) $(ARTIFACTS_DEPS)
 
 # =============================================================================
 # Namespace shortcuts: make docker/<target> или make buildah/<target>
