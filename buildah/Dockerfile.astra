@@ -1,9 +1,9 @@
 # Сборка buildah из исходников со статической компиляцией.
 # Go компилятор берётся из локального образа golang.
 # Результат: /out/usr/bin/buildah (статический бинарник)
-# Использование: COPY --from=buildah:local /out /
+# Использование: COPY --from=buildah-astra:v1.38.0-build /out /
 
-ARG GO_IMAGE=golang-go1.22.6:local
+ARG GO_IMAGE=golang-astra:go1.22.6-build
 ARG BASE_IMAGE=astra-linux:2.12
 
 FROM ${GO_IMAGE} AS golang
@@ -16,14 +16,15 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Go компилятор из локального образа
 COPY --from=golang /out/usr/local/go /usr/local/go
+ENV GOROOT=/usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
 
 WORKDIR /build
 
-COPY artifacts/${BUILDAH_VERSION}.tar.gz /build/
+COPY artifacts/src/buildah-${BUILDAH_VERSION}.tar.gz /build/
 RUN mkdir -p /build/buildah \
- && tar xzf /build/${BUILDAH_VERSION}.tar.gz --strip-components=1 -C /build/buildah \
- && rm /build/${BUILDAH_VERSION}.tar.gz
+ && tar xzf /build/buildah-${BUILDAH_VERSION}.tar.gz --strip-components=1 -C /build/buildah \
+ && rm /build/buildah-${BUILDAH_VERSION}.tar.gz
 
 WORKDIR /build/buildah
 

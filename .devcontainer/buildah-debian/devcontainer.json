@@ -2,8 +2,8 @@
   "name": "buildah-debian-rootless",
 
   "build": {
-    "dockerfile": "${localWorkspaceFolder}/buildah-debian/Dockerfile",
-    "context": "${localWorkspaceFolder}/buildah-debian"
+    "dockerfile": "${localWorkspaceFolder}/buildah/Dockerfile.debian",
+    "context": "${localWorkspaceFolder}/buildah"
   },
 
   "mounts": [

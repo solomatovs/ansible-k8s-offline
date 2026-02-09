@@ -1,7 +1,7 @@
 # Сборка полностью статического dpkg с патчами для rootless-установки пакетов.
 # Результат: /out (--prefix=/usr, --localstatedir=/var, --sysconfdir=/etc)
 # Бинарники не имеют runtime-зависимостей и переносимы между дистрибутивами.
-# Использование: COPY --from=dpkg-rootless:local /out /
+# Использование: COPY --from=dpkg-astra:1.23.5-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
 
@@ -27,8 +27,8 @@ RUN apt-get update \
 WORKDIR /build
 
 # Копируем предварительно скачанные артефакты (make download)
-COPY artifacts/libmd-${LIBMD_VERSION}.tar.xz /build/
-COPY artifacts/dpkg_${DPKG_VERSION}.tar.xz /build/
+COPY artifacts/src/libmd-${LIBMD_VERSION}.tar.xz /build/
+COPY artifacts/src/dpkg_${DPKG_VERSION}.tar.xz /build/
 
 # Сборка libmd из исходников (static-only: нужна только libmd.a)
 RUN tar -xf libmd-${LIBMD_VERSION}.tar.xz \
