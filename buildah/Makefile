@@ -2,10 +2,10 @@
 -include config.mk
 
 BUILDAH_REPO     := $(GITHUB_URL)/containers/buildah.git
-BUILDAH_VERSIONS := v1.38.0 v1.42.0 v1.43.0
+BUILDAH_VERSIONS := 1.38.0 1.42.0 1.43.0
 
-# Версия из командной строки: make docker/test-astra v1.38.0
-_VERSION_ARGS := $(filter v%,$(MAKECMDGOALS))
+# Версия из командной строки: make docker/test-astra 1.38.0
+_VERSION_ARGS := $(filter $(BUILDAH_VERSIONS),$(MAKECMDGOALS))
 V := $(or $(V),$(firstword $(_VERSION_ARGS)))
 T ?= runtime
 
@@ -42,10 +42,10 @@ endif
 ASTRA_BASE_IMAGE := astra-linux:2.12
 
 # Go-компилятор по умолчанию для каждой версии buildah
-# Переопределение: make docker/image-astra v1.38.0 G=go1.24.5
-GO_v1.38.0 := go1.22.6
-GO_v1.42.0 := go1.24.5
-GO_v1.43.0 := go1.24.5
+# Переопределение: make docker/image-astra 1.38.0 G=1.24.5
+GO_1.38.0 := 1.22.6
+GO_1.42.0 := 1.24.5
+GO_1.43.0 := 1.24.5
 
 G ?= $(GO_$(V))
 
@@ -86,16 +86,15 @@ DEBIAN_LABELS := \
 	--label org.opencontainers.image.version=$(DEBIAN_CODENAME)-runtime \
 	--label org.opencontainers.image.base.name=$(DEBIAN_BASE_IMAGE)
 
-# --- Валидация и ensure ---
-check_version = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image-astra v1.38.0)"; echo "Поддерживаемые версии: $(BUILDAH_VERSIONS)"; exit 1; fi
-check_go      = @if [ -z "$(G)" ]; then echo "Ошибка: Go-компилятор не задан для версии $(V)"; echo "Добавьте GO_$(V) := goX.Y в Makefile или задайте G=goX.Y"; exit 1; fi
+# --- Валидация (внешние зависимости — ошибка если нет) ---
+check_version  = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image-astra 1.38.0)"; echo "Поддерживаемые версии: $(BUILDAH_VERSIONS)"; exit 1; fi
+check_go       = @if [ -z "$(G)" ]; then echo "Ошибка: Go-компилятор не задан для версии $(V)"; echo "Добавьте GO_$(V) := X.Y.Z в Makefile или задайте G=X.Y.Z"; exit 1; fi
+check_src_file = @test -f $(ARTIFACTS_SRC)/buildah-$(V).tar.gz || (echo "Ошибка: $(ARTIFACTS_SRC)/buildah-$(V).tar.gz не найден"; echo "Выполните: make download $(V)"; exit 1)
 
+# --- Ensure (внутренние зависимости — автосборка если нет) ---
 ensure_astra         = @$(_INSPECT) $(call astra_build_name,$(1)) > /dev/null 2>&1 || $(MAKE) image-astra V=$(1) T=build
 ensure_astra_runtime = @$(_INSPECT) $(call astra_runtime_name,$(1)) > /dev/null 2>&1 || $(MAKE) image-astra V=$(1) T=runtime
 ensure_debian        = @$(_INSPECT) $(DEBIAN_RUNTIME_IMAGE) > /dev/null 2>&1 || $(MAKE) image-debian
-
-_pre_image = $(if $(filter build,$(T)),@$(MAKE) $(ARTIFACTS_SRC)/buildah-$(V).tar.gz,$(call ensure_astra,$(V)))
-_pre_run   = $(if $(filter build,$(T)),$(call ensure_astra,$(V)),$(call ensure_astra_runtime,$(V)))
 
 .DEFAULT_GOAL := help
 
@@ -109,22 +108,22 @@ help:
 	@echo "       make buildah/<target>   (внутри devcontainer, через Buildah)"
 	@echo ""
 	@echo "Astra Linux (сборка из исходников):"
-	@echo "  download     vX                      Скачать исходники buildah (требует интернет)"
-	@echo "  image-astra  vX [T=type] [G=comp]    Собрать образ и экспортировать в artifacts/images/"
-	@echo "  build-astra  vX [G=comp]             Архивировать артефакты в artifacts/build/"
-	@echo "  test-astra   vX [T=type]             Проверить buildah version"
-	@echo "  shell-astra  vX [T=type]             Shell в образе"
-	@echo "  clean-astra  vX                      Удалить образы и артефакты версии"
+	@echo "  download     X.Y.Z                   Скачать исходники buildah (требует интернет)"
+	@echo "  image-astra  X.Y.Z [T=type] [G=comp] Собрать образ и экспортировать в artifacts/images/"
+	@echo "  build-astra  X.Y.Z [G=comp]          Архивировать артефакты в artifacts/build/"
+	@echo "  test-astra   X.Y.Z [T=type]          Проверить buildah version"
+	@echo "  shell-astra  X.Y.Z [T=type]          Shell в образе"
+	@echo "  clean-astra  X.Y.Z                   Удалить образы и артефакты версии"
 	@echo ""
 	@echo "  Поддерживаемые версии: $(BUILDAH_VERSIONS)"
 	@echo "  Типы образов (T): runtime (по умолчанию), build"
 	@echo "  Go-компилятор (G):$(foreach v,$(BUILDAH_VERSIONS), $(v)→$(GO_$(v)))"
 	@echo ""
 	@echo "  Примеры:"
-	@echo "    make docker/image-astra v1.38.0"
-	@echo "    make docker/image-astra v1.38.0 T=build"
-	@echo "    make docker/image-astra v1.43.0"
-	@echo "    make docker/image-astra v1.38.0 G=go1.24.5"
+	@echo "    make docker/image-astra 1.38.0"
+	@echo "    make docker/image-astra 1.38.0 T=build"
+	@echo "    make docker/image-astra 1.43.0"
+	@echo "    make docker/image-astra 1.38.0 G=1.24.5"
 	@echo ""
 	@echo "Debian (установка из пакетов):"
 	@echo "  image-debian                          Собрать образ и экспортировать в artifacts/images/"
@@ -146,7 +145,7 @@ download:
 
 $(ARTIFACTS_SRC)/buildah-%.tar.gz:
 	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(BUILDAH_ARCHIVE_URL)/$*.tar.gz
+	curl -fSL -o $@ $(BUILDAH_ARCHIVE_URL)/v$*.tar.gz
 
 # =============================================================================
 # Targets (backend выбирается через BACKEND)
@@ -155,8 +154,9 @@ $(ARTIFACTS_SRC)/buildah-%.tar.gz:
 # --- Astra ---
 image-astra:
 	$(call check_version)
-	$(call check_go)
-	$(_pre_image)
+	$(if $(filter build,$(T)),$(call check_go))
+	$(if $(filter build,$(T)),$(call check_src_file))
+	$(if $(filter runtime,$(T)),$(call ensure_astra,$(V)))
 	$(_BUILD) \
 	  $(_ASTRA_BUILD_ARGS) \
 	  $(_ASTRA_LABELS) \
@@ -173,13 +173,13 @@ build-astra:
 
 test-astra:
 	$(call check_version)
-	$(_pre_run)
+	$(if $(filter runtime,$(T)),$(call ensure_astra_runtime,$(V)),$(call ensure_astra,$(V)))
 	@echo "=== $(_ASTRA_IMAGE) ==="
 	@$(call _run,$(_ASTRA_IMAGE),sh -c '$(_ASTRA_TEST_CMD)')
 
 shell-astra:
 	$(call check_version)
-	$(_pre_run)
+	$(if $(filter runtime,$(T)),$(call ensure_astra_runtime,$(V)),$(call ensure_astra,$(V)))
 	@$(call _shell,$(_ASTRA_IMAGE))
 
 clean-astra:
@@ -232,6 +232,6 @@ docker/%:
 buildah/%:
 	@$(MAKE) $* BACKEND=buildah $(if $(V),V=$(V)) T=$(T) $(if $(G),G=$(G))
 
-# Catch-all: версия как цель (например, make docker/test-astra v1.38.0)
-v%:
+# Catch-all: версия как цель (например, make docker/test-astra 1.38.0)
+$(BUILDAH_VERSIONS):
 	@:
