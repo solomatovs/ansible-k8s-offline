@@ -1,10 +1,14 @@
-# DevOps-образ: rootless buildah + dpkg + golang на Astra Linux.
-# Объединяет артефакты из проектов dpkg/, buildah/ и golang/.
+# DevOps-образ: rootless buildah + dpkg + git + golang + gcc на Astra Linux.
+# Объединяет артефакты из проектов dpkg/, buildah/, git/ и golang/.
 # Бинарные зависимости подаются как файлы из artifacts/deps/ (make deps).
 #
+# Образы (COPY --from в Dockerfile):
+#   - glibc:2.28-build
+#   - libstdcxx:8.5.0-build
 # Зависимости (должны быть извлечены до сборки: make deps):
 #   - artifacts/deps/dpkg-1.23.5.tar.gz
 #   - artifacts/deps/buildah-1.38.0.tar.gz
+#   - artifacts/deps/git-2.42.0.tar.gz
 #   - artifacts/deps/golang-1.24.5.tar.gz
 #
 # Образ не привязан к конкретному пользователю —
@@ -13,15 +17,27 @@
 #   - /etc/subuid и /etc/subgid с split-диапазонами (пропустить собственный uid)
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG GLIBC_VERSION=2.28
+ARG LIBSTDCXX_VERSION=8.5.0
 ARG DPKG_VERSION=1.23.5
 ARG BUILDAH_VERSION=1.38.0
+ARG GIT_VERSION=2.42.0
 ARG GO_VERSION=1.24.5
+ARG RELEASE_INFO=""
+
+# Ссылки на pre-built образы (COPY --from не запускает код, нет segfault)
+FROM glibc:${GLIBC_VERSION}-build AS glibc
+FROM libstdcxx:${LIBSTDCXX_VERSION}-build AS libstdcxx
 
 FROM ${BASE_IMAGE}
 
+ARG GLIBC_VERSION
+ARG LIBSTDCXX_VERSION
 ARG DPKG_VERSION
 ARG BUILDAH_VERSION
+ARG GIT_VERSION
 ARG GO_VERSION
+ARG RELEASE_INFO
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -34,6 +50,11 @@ RUN tar xzf /build/dpkg-${DPKG_VERSION}.tar.gz -C / \
 COPY artifacts/deps/buildah-${BUILDAH_VERSION}.tar.gz /build/
 RUN tar xzf /build/buildah-${BUILDAH_VERSION}.tar.gz -C / \
  && rm /build/buildah-${BUILDAH_VERSION}.tar.gz
+
+# --- git (статический бинарник из нашей сборки) ---
+COPY artifacts/deps/git-${GIT_VERSION}.tar.gz /build/
+RUN tar xzf /build/git-${GIT_VERSION}.tar.gz -C / \
+ && rm /build/git-${GIT_VERSION}.tar.gz
 
 # --- golang ---
 COPY artifacts/deps/golang-${GO_VERSION}.tar.gz /build/
@@ -50,9 +71,27 @@ RUN apt-get update \
         ca-certificates \
         make \
         curl \
-        git \
+        gcc \
+        libc6-dev \
         strace \
     && rm -rf /var/lib/apt/lists/*
+
+# --- glibc 2.28 (обновление с 2.24 для совместимости с VSCode Server / Node.js 20+) ---
+# ВАЖНО: glibc заменяется ПОСЛЕ apt-get install, т.к. apt устанавливает libc6 (2.24)
+# из репозитория и перезаписал бы наши файлы.
+# COPY --from безопасно заменяет .so файлы без запуска процессов в контейнере.
+COPY --from=glibc /out/lib/ /lib/
+COPY --from=glibc /out/usr/lib/ /usr/lib/
+# sln — статический бинарник из glibc для безопасного обновления symlinks.
+# ELF PT_INTERP в Astra указывает на /lib64/ld-linux-x86-64.so.2 → ld-2.24.so.
+# Без обновления этого symlink ядро загружает старый ld-2.24 + новый libc-2.28 = segfault.
+COPY --from=glibc /out/sbin/sln /tmp/sln
+RUN ["/tmp/sln", "/lib/x86_64-linux-gnu/ld-2.28.so", "/lib64/ld-linux-x86-64.so.2"]
+RUN ldconfig
+
+# --- libstdc++ (GLIBCXX_3.4.25 для VSCode Server / Node.js 20+) ---
+COPY --from=libstdcxx /out/usr/lib/ /usr/lib/
+RUN ldconfig && rm -f /tmp/sln
 
 # --- Конфигурация buildah ---
 RUN mkdir -p /etc/containers \
@@ -121,6 +160,9 @@ RUN setcap cap_setuid+ep /usr/bin/newuidmap \
 RUN : > /etc/subuid && : > /etc/subgid
 
 RUN rm -rf /build
+
+# --- Метаданные профиля ---
+RUN printf '%b\n' "${RELEASE_INFO}" > /etc/devops-release
 
 ENV HOME=/home
 ENV LANG=C.UTF-8

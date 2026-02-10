@@ -1,104 +1,177 @@
 # =============================================================================
-# DevOps-образ: rootless buildah + dpkg + golang на Astra Linux
+# DevOps-образ: rootless buildah + dpkg + git + golang + gcc на Astra Linux
 # =============================================================================
 
 -include config.local.mk
 -include config.mk
 
-BASE_IMAGE       := astra-linux:2.12
-DEVOPS_IMAGE     := devops-astra:latest
+BASE_IMAGE := astra-linux:2.12
 
-# --- Версии внешних зависимостей ---
-DPKG_VERSION    ?= 1.23.5
-BUILDAH_VERSION ?= 1.38.0
-GO_VERSION      ?= 1.24.5
+# --- Обнаружение профилей ---
+PROFILES := $(sort $(basename $(notdir $(wildcard profiles/*.mk))))
+_PROFILE_ARGS := $(filter $(PROFILES),$(MAKECMDGOALS))
+P := $(or $(P),$(firstword $(_PROFILE_ARGS)))
+
+ifdef P
+-include profiles/$(P).mk
+endif
+
+check_profile = @if [ -z "$(P)" ]; then \
+    echo "Ошибка: укажите профиль (например, make docker/image full)"; \
+    echo "Доступные профили: $(PROFILES)"; exit 1; fi
+
+# --- Имя образа ---
+DEVOPS_IMAGE = devops-astra:$(P)-v$(PROFILE_VERSION)
 
 ARTIFACTS_DEPS   := artifacts/deps
 ARTIFACTS_IMAGES := artifacts/images
 
-# Имена файлов бинарных зависимостей
+# --- Зависимости ---
+# glibc и libstdcxx используются как Docker-образы (COPY --from в Dockerfile),
+# а не как tar.gz, т.к. замена libc на лету крашит запущенные процессы.
+_GLIBC_IMAGE    = glibc:$(GLIBC_VERSION)-build
+_LIBSTDCXX_IMAGE = libstdcxx:$(LIBSTDCXX_VERSION)-build
 _DPKG_DEP    = $(ARTIFACTS_DEPS)/dpkg-$(DPKG_VERSION).tar.gz
 _BUILDAH_DEP = $(ARTIFACTS_DEPS)/buildah-$(BUILDAH_VERSION).tar.gz
+_GIT_DEP     = $(ARTIFACTS_DEPS)/git-$(GIT_VERSION).tar.gz
 _GO_DEP      = $(ARTIFACTS_DEPS)/golang-$(GO_VERSION).tar.gz
 
 include ../mk/backend.mk
 include ../mk/deps.mk
 
+# Переопределяем _run и _shell — devops-контейнеру нужен seccomp=unconfined
+# для работы buildah (unshare CLONE_NEWUSER заблокирован по умолчанию).
+ifeq ($(BACKEND),docker)
+  _run   = docker run --rm --security-opt seccomp=unconfined $(1) $(2)
+  _shell = docker run --rm -it --security-opt seccomp=unconfined $(1) /bin/bash
+else
+  _run   = ctr=$$(buildah from $(1)) && buildah run "$$ctr" -- $(2) && buildah rm "$$ctr" > /dev/null
+  _shell = ctr=$$(buildah from $(1)) && buildah run --tty "$$ctr" -- /bin/bash; buildah rm "$$ctr" > /dev/null 2>&1 || true
+endif
+
+# Проверка наличия Docker-образа
+check_image = @docker inspect $(1) > /dev/null 2>&1 || \
+	{ echo "Ошибка: образ $(1) не найден" >&2; \
+	  echo "Сначала соберите: make -C ../$(2) docker/image $(3)" >&2; exit 1; };
+
 # Правила извлечения зависимостей из Docker-образов
 $(eval $(call dep_rule,dpkg,dpkg))
 $(eval $(call dep_rule,buildah,buildah))
+$(eval $(call dep_rule,git,git))
 $(eval $(call dep_rule,golang,golang))
+
+# --- Build args и метки ---
+_RELEASE_INFO = PROFILE=$(P)\nPROFILE_VERSION=$(PROFILE_VERSION)\nGLIBC_VERSION=$(GLIBC_VERSION)\nLIBSTDCXX_VERSION=$(LIBSTDCXX_VERSION)\nDPKG_VERSION=$(DPKG_VERSION)\nBUILDAH_VERSION=$(BUILDAH_VERSION)\nGIT_VERSION=$(GIT_VERSION)\nGO_VERSION=$(GO_VERSION)
+_DESCRIPTION = glibc=$(GLIBC_VERSION) libstdc++=$(LIBSTDCXX_VERSION) dpkg=$(DPKG_VERSION) buildah=$(BUILDAH_VERSION) git=$(GIT_VERSION) go=$(GO_VERSION)
 
 LABELS := \
 	--label org.opencontainers.image.title=devops-astra \
-	--label org.opencontainers.image.base.name=$(BASE_IMAGE)
+	--label org.opencontainers.image.version=$(P)-v$(PROFILE_VERSION) \
+	--label org.opencontainers.image.base.name=$(BASE_IMAGE) \
+	--label "org.opencontainers.image.description=$(_DESCRIPTION)"
 
 BUILD_ARGS := \
 	--build-arg BASE_IMAGE=$(BASE_IMAGE) \
+	--build-arg GLIBC_VERSION=$(GLIBC_VERSION) \
+	--build-arg LIBSTDCXX_VERSION=$(LIBSTDCXX_VERSION) \
 	--build-arg DPKG_VERSION=$(DPKG_VERSION) \
 	--build-arg BUILDAH_VERSION=$(BUILDAH_VERSION) \
-	--build-arg GO_VERSION=$(GO_VERSION)
+	--build-arg GIT_VERSION=$(GIT_VERSION) \
+	--build-arg GO_VERSION=$(GO_VERSION) \
+	--build-arg RELEASE_INFO="$(_RELEASE_INFO)"
 
 # --- Ensure (внутренние зависимости — автосборка если нет) ---
-ensure = @$(call _ensure_check,$(DEVOPS_IMAGE)) $(MAKE) image
+ensure = @$(call _ensure_check,$(DEVOPS_IMAGE)) $(MAKE) image P=$(P)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help deps image test shell clean
+.PHONY: help show-versions deps image test shell clean
+.PHONY: $(PROFILES)
 
 help:
-	@echo "Usage: make docker/<target>    (на хосте, через Docker)"
-	@echo "       make buildah/<target>   (внутри devcontainer, через Buildah)"
+	@echo "Usage: make docker/<target> <profile>   (на хосте, через Docker)"
+	@echo "       make buildah/<target> <profile>  (внутри devcontainer, через Buildah)"
 	@echo ""
 	@echo "Targets:"
-	@echo "  deps             Извлечь бинарные зависимости из Docker-образов в artifacts/deps/"
-	@echo "  image            Собрать образ и экспортировать в artifacts/images/"
-	@echo "  test             Проверить артефакты: dpkg, buildah, go version"
-	@echo "  shell            Shell в образе"
-	@echo "  clean            Удалить образы и артефакты"
+	@echo "  deps    <profile>   Извлечь бинарные зависимости из Docker-образов в artifacts/deps/"
+	@echo "  image   <profile>   Собрать образ и экспортировать в artifacts/images/"
+	@echo "  test    <profile>   Проверить артефакты: dpkg, buildah, go version"
+	@echo "  shell   <profile>   Shell в образе"
+	@echo "  clean   <profile>   Удалить образы и артефакты"
+	@echo "  show-versions <profile>  Показать версии инструментов в профиле"
 	@echo ""
-	@echo "  Зависимости (deps):"
-	@echo "    dpkg:$(DPKG_VERSION)-build       → artifacts/deps/"
-	@echo "    buildah:$(BUILDAH_VERSION)-build  → artifacts/deps/"
-	@echo "    golang:$(GO_VERSION)-build        → artifacts/deps/"
+	@echo "  Доступные профили: $(PROFILES)"
+ifdef P
 	@echo ""
-	@echo "  Переопределение версий:"
-	@echo "    make docker/image DPKG_VERSION=1.23.5 BUILDAH_VERSION=1.42.0 GO_VERSION=1.24.5"
+	@echo "  Текущий профиль ($(P)):"
+	@echo "    Образ: $(DEVOPS_IMAGE)"
+	@echo "    glibc=$(GLIBC_VERSION) libstdc++=$(LIBSTDCXX_VERSION) dpkg=$(DPKG_VERSION) buildah=$(BUILDAH_VERSION) git=$(GIT_VERSION) go=$(GO_VERSION)"
+	@echo ""
+	@echo "  Образы (COPY --from в Dockerfile):"
+	@echo "    glibc:$(GLIBC_VERSION)-build"
+	@echo "    libstdcxx:$(LIBSTDCXX_VERSION)-build"
+	@echo "  Зависимости (deps → artifacts/deps/):"
+	@echo "    dpkg:$(DPKG_VERSION)-build"
+	@echo "    buildah:$(BUILDAH_VERSION)-build"
+	@echo "    git:$(GIT_VERSION)-build"
+	@echo "    golang:$(GO_VERSION)-build"
+endif
 	@echo ""
 	@echo "  Примеры:"
-	@echo "    make docker/deps"
-	@echo "    make docker/image"
-	@echo "    make docker/test"
+	@echo "    make docker/deps full"
+	@echo "    make docker/image full"
+	@echo "    make docker/test full"
+	@echo "    make docker/show-versions full"
+
+show-versions:
+	$(call check_profile)
+	@echo "devops-astra профиль «$(P)» v$(PROFILE_VERSION):"
+	@echo "  GLIBC_VERSION     = $(GLIBC_VERSION)"
+	@echo "  LIBSTDCXX_VERSION = $(LIBSTDCXX_VERSION)"
+	@echo "  DPKG_VERSION      = $(DPKG_VERSION)"
+	@echo "  BUILDAH_VERSION   = $(BUILDAH_VERSION)"
+	@echo "  GIT_VERSION       = $(GIT_VERSION)"
+	@echo "  GO_VERSION        = $(GO_VERSION)"
+	@echo ""
+	@echo "  Образ: $(DEVOPS_IMAGE)"
 
 # --- Извлечение бинарных зависимостей из Docker-образов ---
 deps:
-	@$(MAKE) $(_DPKG_DEP) $(_BUILDAH_DEP) $(_GO_DEP)
+	$(call check_profile)
+	@$(MAKE) $(_DPKG_DEP) $(_BUILDAH_DEP) $(_GIT_DEP) $(_GO_DEP)
 
 # =============================================================================
 # Targets (backend выбирается через BACKEND)
 # =============================================================================
 
 image:
+	$(call check_profile)
+	$(call check_image,$(_GLIBC_IMAGE),glibc,$(GLIBC_VERSION))
+	$(call check_image,$(_LIBSTDCXX_IMAGE),libstdcxx,$(LIBSTDCXX_VERSION))
 	@$(call check_dep,$(_DPKG_DEP))
 	@$(call check_dep,$(_BUILDAH_DEP))
+	@$(call check_dep,$(_GIT_DEP))
 	@$(call check_dep,$(_GO_DEP))
 	$(_BUILD) \
 	  $(BUILD_ARGS) \
 	  $(LABELS) \
 	  -t $(DEVOPS_IMAGE) .
 	mkdir -p $(ARTIFACTS_IMAGES)
-	$(call _save,$(DEVOPS_IMAGE),$(ARTIFACTS_IMAGES)/devops-astra.tar)
+	$(call _save,$(DEVOPS_IMAGE),$(ARTIFACTS_IMAGES)/devops-astra-$(P)-v$(PROFILE_VERSION).tar)
 
 test:
+	$(call check_profile)
 	$(call ensure)
 	@echo "=== $(DEVOPS_IMAGE) ==="
-	@$(call _run,$(DEVOPS_IMAGE),sh -c 'echo "--- dpkg ---" && /usr/bin/dpkg --version && echo "--- buildah ---" && /usr/bin/buildah version && echo "--- go ---" && /usr/local/go/bin/go version')
+	@$(call _run,$(DEVOPS_IMAGE),sh -c 'echo "--- release ---" && cat /etc/devops-release && echo "--- dpkg ---" && dpkg --version && echo "--- buildah ---" && buildah version && echo "--- git ---" && git --version && echo "--- gcc ---" && gcc --version | head -1 && echo "--- go ---" && go version && echo "--- make ---" && make --version | head -1')
 
 shell:
+	$(call check_profile)
 	$(call ensure)
 	@$(call _shell,$(DEVOPS_IMAGE))
 
 clean:
+	$(call check_profile)
 	@docker rmi $(DEVOPS_IMAGE) 2>/dev/null || true
 	@buildah rmi $(DEVOPS_IMAGE) 2>/dev/null || true
 	@rm -rf $(ARTIFACTS_IMAGES) $(ARTIFACTS_DEPS)
@@ -107,7 +180,11 @@ clean:
 # Namespace shortcuts: make docker/<target> или make buildah/<target>
 # =============================================================================
 docker/%:
-	@$(MAKE) $* BACKEND=docker $(if $(DPKG_VERSION),DPKG_VERSION=$(DPKG_VERSION)) $(if $(BUILDAH_VERSION),BUILDAH_VERSION=$(BUILDAH_VERSION)) $(if $(GO_VERSION),GO_VERSION=$(GO_VERSION))
+	@$(MAKE) $* BACKEND=docker $(if $(P),P=$(P))
 
 buildah/%:
-	@$(MAKE) $* BACKEND=buildah $(if $(DPKG_VERSION),DPKG_VERSION=$(DPKG_VERSION)) $(if $(BUILDAH_VERSION),BUILDAH_VERSION=$(BUILDAH_VERSION)) $(if $(GO_VERSION),GO_VERSION=$(GO_VERSION))
+	@$(MAKE) $* BACKEND=buildah $(if $(P),P=$(P))
+
+# Catch-all: профиль как цель (например, make docker/image full)
+$(PROFILES):
+	@:

@@ -1,0 +1,58 @@
+{
+  "name": "devops-astra",
+
+  // Загрузка готового образа в Docker перед стартом devcontainer.
+  // Сборка: make -C devops docker/image full
+  "initializeCommand": "mkdir -p .buildah-storage && for f in devops/artifacts/images/*.tar; do [ -f \"$f\" ] && docker load -i \"$f\"; done",
+
+  // Готовый образ — Docker не собирает Dockerfile, поэтому --pull не мешает.
+  "image": "devops-astra:full-v1",
+
+  "mounts": [
+    // passwd, group, subuid, subgid
+    "source=${localWorkspaceFolder}/.devcontainer/devops-astra/passwd,target=/etc/passwd,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/devops-astra/group,target=/etc/group,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/devops-astra/subuid,target=/etc/subuid,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/devops-astra/subgid,target=/etc/subgid,type=bind",
+    // buildah registries.conf — localhost первый в поиске, позволяет не писать localhost/ в именах образов
+    "source=${localWorkspaceFolder}/.devcontainer/devops-astra/registries.conf,target=/etc/containers/registries.conf,type=bind",
+    // это нужно для постоянного подключения claude code внутрь devcontainer
+    "source=${localEnv:HOME}/.claude,target=/home/.claude,type=bind",
+    // buildah image storage — именованный том, переживает пересоздание контейнера
+    "source=${localWorkspaceFolder}/.buildah-storage,target=/home/.local/share/containers,type=bind"
+  ],
+  "containerUser": "1000:984",
+  "updateRemoteUserUID": false,
+
+  "runArgs": [
+    "--cap-add",
+    "SYS_PTRACE",
+    "--security-opt",
+    "seccomp=.devcontainer/devops-astra/seccomp.json"
+  ],
+
+  "hostRequirements": {
+    "cpus": 1,
+    "memory": "8gb",
+    "storage": "20gb"
+  },
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "sh": {
+            "path": "/bin/bash",
+            "args": ["-l"]
+          }
+        }
+      },
+      "extensions": [
+        "dracula-theme.theme-dracula",
+        "Anthropic.claude-code",
+        "mhutchie.git-graph"
+      ]
+    }
+  }
+}
