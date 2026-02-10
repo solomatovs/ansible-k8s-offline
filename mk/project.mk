@@ -134,9 +134,14 @@ ifdef _HELP_EXTRA
 	@$(_HELP_EXTRA)
 endif
 	@echo ""
+	@echo "  Флаги:"
+	@echo "    FORCE=1                   Пересборка без кеша (--no-cache)"
+	@echo "    BACKEND=docker|buildah    Выбор backend (по умолчанию: buildah)"
+	@echo ""
 	@echo "  Примеры:"
 	@echo "    make docker/image $(firstword $(VERSIONS))"
 	@echo "    make docker/test  $(firstword $(VERSIONS))"
+	@echo "    make docker/image $(firstword $(VERSIONS)) FORCE=1"
 
 # --- Скачивание исходников ---
 download:
