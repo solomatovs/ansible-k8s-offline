@@ -9,6 +9,8 @@ FROM ${BASE_IMAGE} AS builder
 
 ARG DPKG_VERSION=1.23.5
 ARG LIBMD_VERSION=1.1.0
+ARG LZMA_VERSION=5.2.2
+ARG ZSTD_VERSION=1.5.5
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -18,15 +20,21 @@ RUN apt-get update \
         xz-utils \
         pkg-config \
         libbz2-dev \
-        liblzma-dev \
-        libzstd-dev \
         perl \
  && rm -rf /var/lib/apt/lists/*
 
-# libmd — статическая библиотека из отдельного проекта (make deps)
+# C-зависимости из наших сборок (вместо apt -dev пакетов)
 COPY artifacts/deps/libmd-${LIBMD_VERSION}.tar.gz /build/
 RUN tar xzf /build/libmd-${LIBMD_VERSION}.tar.gz -C / \
  && rm /build/libmd-${LIBMD_VERSION}.tar.gz
+
+COPY artifacts/deps/liblzma-${LZMA_VERSION}.tar.gz /build/
+RUN tar xzf /build/liblzma-${LZMA_VERSION}.tar.gz -C / \
+ && rm /build/liblzma-${LZMA_VERSION}.tar.gz
+
+COPY artifacts/deps/zstd-${ZSTD_VERSION}.tar.gz /build/
+RUN tar xzf /build/zstd-${ZSTD_VERSION}.tar.gz -C / \
+ && rm /build/zstd-${ZSTD_VERSION}.tar.gz
 
 WORKDIR /build
 
@@ -35,11 +43,17 @@ COPY artifacts/src/dpkg_${DPKG_VERSION}.tar.xz /build/
 
 RUN tar -xf dpkg_${DPKG_VERSION}.tar.xz
 
-# Удаляем все .so для зависимостей — линкер найдёт только .a
+# Удаляем все .so и .la для зависимостей — линкер найдёт только .a
+# (.la файлы содержат пути к .so, и libtool подставляет их в команду линковки)
 # (после распаковки tar.xz, т.к. tar нужна liblzma.so для xz-декомпрессии)
 RUN find /usr/lib /lib -name "liblzma.so*" -delete 2>/dev/null; \
     find /usr/lib /lib -name "libzstd.so*" -delete 2>/dev/null; \
     find /usr/lib /lib -name "libbz2.so*" -delete 2>/dev/null; \
+    find /usr/lib /lib -name "libmd.so*" -delete 2>/dev/null; \
+    find /usr/lib /lib -name "liblzma.la" -delete 2>/dev/null; \
+    find /usr/lib /lib -name "libzstd.la" -delete 2>/dev/null; \
+    find /usr/lib /lib -name "libbz2.la" -delete 2>/dev/null; \
+    find /usr/lib /lib -name "libmd.la" -delete 2>/dev/null; \
     true
 
 WORKDIR /build/dpkg-${DPKG_VERSION}

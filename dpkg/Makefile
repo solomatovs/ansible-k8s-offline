@@ -7,23 +7,29 @@ DPKG_VERSIONS := $(VERSIONS)
 T ?= runtime
 
 L ?= $(LIBMD_VERSION)
+XZ ?= $(LZMA_VERSION)
+ZS ?= $(ZSTD_VERSION)
 
 ARTIFACTS_SRC    := artifacts/src
 ARTIFACTS_DEPS   := artifacts/deps
 ARTIFACTS_BUILD  := artifacts/build
 ARTIFACTS_IMAGES := artifacts/images
 
-# Имя файла бинарной зависимости (условное — пустое если версия не задана)
+# Имена файлов бинарных зависимостей (условные — пустые если версия не задана)
 _LIBMD_DEP = $(if $(L),$(ARTIFACTS_DEPS)/libmd-$(L).tar.gz)
+_LZMA_DEP  = $(if $(XZ),$(ARTIFACTS_DEPS)/liblzma-$(XZ).tar.gz)
+_ZSTD_DEP  = $(if $(ZS),$(ARTIFACTS_DEPS)/zstd-$(ZS).tar.gz)
 
 # Список активных deps (пустые автоматически исключаются)
-_ALL_DEPS = $(strip $(_LIBMD_DEP))
+_ALL_DEPS = $(strip $(_LIBMD_DEP) $(_LZMA_DEP) $(_ZSTD_DEP))
 
 include ../mk/backend.mk
 include ../mk/deps.mk
 
 # Правила извлечения зависимостей из Docker-образов
 $(eval $(call dep_rule,libmd,libmd))
+$(eval $(call dep_rule,liblzma,liblzma))
+$(eval $(call dep_rule,zstd,zstd))
 
 # --- Имена образов ---
 image_name   = dpkg:$(1)-build
@@ -41,7 +47,7 @@ _DOCKERFILE = $(if $(filter runtime,$(T)),$(or $(DOCKERFILE_RUNTIME),Dockerfile.
 
 _BUILD_ARGS = $(if $(filter runtime,$(T)),\
   --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg BUILD_IMAGE=$(call image_name,$(V)),\
-  --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg DPKG_VERSION=$(V) $(if $(L),--build-arg LIBMD_VERSION=$(L)))
+  --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg DPKG_VERSION=$(V) $(if $(L),--build-arg LIBMD_VERSION=$(L)) $(if $(XZ),--build-arg LZMA_VERSION=$(XZ)) $(if $(ZS),--build-arg ZSTD_VERSION=$(ZS)))
 
 _LABELS     = $(call labels,$(if $(filter runtime,$(T)),dpkg-astra,dpkg),$(V),$(T))
 _TAR_NAME   = $(if $(filter runtime,$(T)),dpkg-astra,dpkg)-$(V)-$(T).tar
@@ -77,7 +83,10 @@ help:
 	@echo "  Типы образов (T): runtime (по умолчанию), build"
 	@echo "  libmd (L): задаётся в versions/<V>.mk"
 	@echo ""
-	@echo "  Зависимости (deps): libmd:<L>-build → artifacts/deps/"
+	@echo "  Зависимости (deps):"
+	@echo "    libmd:<L>-build      → artifacts/deps/"
+	@echo "    liblzma:<XZ>-build   → artifacts/deps/"
+	@echo "    zstd:<ZS>-build      → artifacts/deps/"
 	@echo ""
 	@echo "  Примеры:"
 	@echo "    make docker/image 1.23.5"

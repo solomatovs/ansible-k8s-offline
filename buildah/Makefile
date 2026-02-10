@@ -4,6 +4,14 @@
 BUILDAH_REPO     := $(GITHUB_URL)/containers/buildah.git
 include ../mk/versions.mk
 BUILDAH_VERSIONS := $(VERSIONS)
+
+# Авторазрешение транзитивных версий зависимостей.
+# Порядок важен: libsystemd → libgcrypt (GCRYPT_VERSION приходит из libsystemd).
+_RESOLVE = libsystemd:SYSTEMD_VERSION \
+           libbtrfs:BTRFS_VERSION \
+           libgcrypt:GCRYPT_VERSION
+include ../mk/resolve.mk
+
 T ?= runtime
 
 ARTIFACTS_SRC    := artifacts/src
@@ -112,10 +120,19 @@ ensure_debian        = @$(call _ensure_check,$(DEBIAN_RUNTIME_IMAGE)) $(MAKE) im
 
 .DEFAULT_GOAL := help
 
-.PHONY: help download deps \
+.PHONY: help show-versions download deps \
         image-astra build-astra test-astra shell-astra clean-astra \
         image-debian test-debian shell-debian clean-debian \
         clean
+
+show-versions:
+	$(call check_version)
+	@echo "buildah $(V) — Resolved versions:"
+	@echo "  Primary (from versions/$(V).mk):"
+	@echo "    GO=$(G)  DEVMAPPER=$(DM)  BTRFS=$(BT)  SYSTEMD=$(SD)"
+	@echo "  Resolved (from dep version files):"
+	@echo "    SECCOMP=$(SC)  LIBCAP=$(LC)  LIBMOUNT=$(LM)"
+	@echo "    GPG_ERROR=$(GE)  GCRYPT=$(GC)"
 
 help:
 	@echo "Usage: make docker/<target>    (на хосте, через Docker)"
