@@ -106,9 +106,9 @@ check_go       = @if [ -z "$(G)" ]; then echo "Ошибка: Go-компилят
 check_src_file = @test -f $(ARTIFACTS_SRC)/buildah-$(V).tar.gz || (echo "Ошибка: $(ARTIFACTS_SRC)/buildah-$(V).tar.gz не найден"; echo "Выполните: make download $(V)"; exit 1)
 
 # --- Ensure (внутренние зависимости — автосборка если нет) ---
-ensure_astra         = @$(_INSPECT) $(call astra_build_name,$(1)) > /dev/null 2>&1 || $(MAKE) image-astra V=$(1) T=build
-ensure_astra_runtime = @$(_INSPECT) $(call astra_runtime_name,$(1)) > /dev/null 2>&1 || $(MAKE) image-astra V=$(1) T=runtime
-ensure_debian        = @$(_INSPECT) $(DEBIAN_RUNTIME_IMAGE) > /dev/null 2>&1 || $(MAKE) image-debian
+ensure_astra         = @$(call _ensure_check,$(call astra_build_name,$(1))) $(MAKE) image-astra V=$(1) T=build
+ensure_astra_runtime = @$(call _ensure_check,$(call astra_runtime_name,$(1))) $(MAKE) image-astra V=$(1) T=runtime
+ensure_debian        = @$(call _ensure_check,$(DEBIAN_RUNTIME_IMAGE)) $(MAKE) image-debian
 
 .DEFAULT_GOAL := help
 
@@ -189,7 +189,7 @@ image-astra:
 	$(call check_version)
 	$(if $(and $(filter build,$(T)),$(G)),$(call check_go))
 	$(if $(filter build,$(T)),$(call check_src_file))
-	$(foreach d,$(_ALL_DEPS),$(if $(filter build,$(T)),$(call check_dep,$(d))))
+	@$(foreach d,$(_ALL_DEPS),$(if $(filter build,$(T)),$(call check_dep,$(d))))
 	$(if $(filter runtime,$(T)),$(call ensure_astra,$(V)))
 	$(_BUILD) \
 	  $(_ASTRA_BUILD_ARGS) \

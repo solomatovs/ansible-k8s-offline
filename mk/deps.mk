@@ -4,8 +4,9 @@
 # =============================================================================
 
 # Универсальная проверка наличия dep-файла
-# Использование: $(call check_dep,/path/to/dep.tar.gz)
-check_dep = @test -f $(1) || (echo "Ошибка: $(1) не найден"; echo "Выполните: make deps $(V)"; exit 1)
+# Использование в foreach: @$(foreach d,$(_ALL_DEPS),$(call check_dep,$(d)))
+# Использование одиночно: @$(call check_dep,/path/to/dep.tar.gz)
+check_dep = test -f $(1) || { echo "Ошибка: $(1) не найден" >&2; echo "Выполните: make deps $(V)" >&2; exit 1; };
 
 # Генерация правила извлечения зависимости из Docker-образа
 # Использование: $(eval $(call dep_rule,image_prefix,project_dir))

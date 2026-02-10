@@ -26,13 +26,21 @@ _IMAGE      = $(call image_name,$(V))
 _BUILD_ARGS = --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg BTRFS_VERSION=$(V)
 _LABELS     = $(call labels,$(V))
 _TAR_NAME   = libbtrfs-$(V)-build.tar
-_TEST_CMD   = sh -c 'test -f /out/usr/lib/libbtrfs.a && test -f /out/usr/lib/libbtrfsutil.a && test -f /out/usr/include/btrfs/ioctl.h && ls -lh /out/usr/lib/libbtrfs.a /out/usr/lib/libbtrfsutil.a && echo "libbtrfs build: ok"'
+_TEST_CMD   = sh -c '\
+	echo "=== files ===" && \
+	test -f /out/usr/lib/libbtrfs.a && \
+	test -f /out/usr/lib/libbtrfsutil.a && \
+	test -f /out/usr/include/btrfs/ioctl.h && \
+	ls -lh /out/usr/lib/libbtrfs.a /out/usr/lib/libbtrfsutil.a && \
+	echo "=== shared libraries ===" && \
+	find /out -name "*.so*" -exec ls -lh {} \; && \
+	echo "" && echo "libbtrfs build: ok"'
 
 # --- Валидация и ensure ---
 check_version  = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image 6.6.3)"; echo "Поддерживаемые версии: $(BTRFS_VERSIONS)"; exit 1; fi
 check_src_file = @test -f $(ARTIFACTS_SRC)/btrfs-progs-$(V).tar.gz || (echo "Ошибка: $(ARTIFACTS_SRC)/btrfs-progs-$(V).tar.gz не найден"; echo "Выполните: make download $(V)"; exit 1)
 
-ensure = @$(_INSPECT) $(call image_name,$(1)) > /dev/null 2>&1 || $(MAKE) image V=$(1)
+ensure = @$(call _ensure_check,$(call image_name,$(1))) $(MAKE) image V=$(1)
 
 .DEFAULT_GOAL := help
 
@@ -77,7 +85,7 @@ image:
 	$(_BUILD) \
 	  $(_BUILD_ARGS) \
 	  $(_LABELS) \
-	  -f $(or $(DOCKERFILE),Dockerfile) \
+	  -f $(_DOCKERFILE) \
 	  -t $(_IMAGE) .
 	mkdir -p $(ARTIFACTS_IMAGES)
 	$(call _save,$(_IMAGE),$(ARTIFACTS_IMAGES)/$(_TAR_NAME))

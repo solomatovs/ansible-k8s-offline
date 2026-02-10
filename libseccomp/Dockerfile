@@ -1,9 +1,10 @@
-# Сборка статической библиотеки libseccomp из исходников.
+# Сборка статической и динамической библиотеки libseccomp из исходников.
 # Результат: /out (--prefix=/usr)
 #   /out/usr/lib/libseccomp.a         — статическая библиотека
+#   /out/usr/lib/libseccomp.so*       — динамическая библиотека
 #   /out/usr/include/seccomp.h        — заголовочный файл
 #   /out/usr/lib/pkgconfig/libseccomp.pc — pkg-config
-# Использование: COPY --from=libseccomp-astra:2.5.5-build /out /
+# Использование: COPY --from=libseccomp:2.5.5-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
 
@@ -30,11 +31,10 @@ RUN mkdir -p /build/libseccomp \
 
 WORKDIR /build/libseccomp
 
-RUN ./configure --prefix=/usr --libdir=/usr/lib --enable-static --disable-shared \
+RUN ./configure --prefix=/usr --libdir=/usr/lib --enable-static --enable-shared \
  && make -j$(nproc) \
  && make DESTDIR=/out install \
- && find /out -name '*.la' -delete \
- && find /out -name '*.so*' -delete
+ && find /out -name '*.la' -delete
 
 # Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}

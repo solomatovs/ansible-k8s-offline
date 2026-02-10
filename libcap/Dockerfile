@@ -1,9 +1,10 @@
-# Сборка статической библиотеки libcap из исходников.
+# Сборка статической и динамической библиотеки libcap из исходников.
 # Результат: /out (prefix=/usr)
 #   /out/usr/lib/libcap.a              — статическая библиотека
+#   /out/usr/lib/libcap.so*            — динамическая библиотека
 #   /out/usr/include/sys/capability.h  — заголовочный файл
 #   /out/usr/include/sys/securebits.h  — заголовочный файл
-# Использование: COPY --from=libcap-astra:2.25-build /out /
+# Использование: COPY --from=libcap:2.25-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
 
@@ -31,8 +32,7 @@ WORKDIR /build/libcap
 
 # Собираем только библиотеку (без progs и pam_cap)
 RUN make -C libcap -j$(nproc) lib=lib prefix=/usr \
- && make -C libcap DESTDIR=/out prefix=/usr lib=lib install \
- && find /out -name '*.so*' -delete
+ && make -C libcap DESTDIR=/out prefix=/usr lib=lib install
 
 # Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}

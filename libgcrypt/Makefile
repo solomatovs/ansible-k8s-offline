@@ -50,14 +50,14 @@ _TEST_CMD   = sh -c '\
 	ls -lh /out/usr/lib/libgcrypt.a && \
 	echo "=== file type ===" && \
 	head -c 7 /out/usr/lib/libgcrypt.a && echo "" && \
-	echo "=== no .so files ===" && \
-	(find /out -name "*.so*" | grep . && echo "FAIL: shared libraries found" && exit 1 || echo "ok: no shared libraries") && \
+	echo "=== shared libraries ===" && \
+	find /out -name "*.so*" -exec ls -lh {} \; && \
 	echo "" && echo "libgcrypt build: ok"'
 
 # --- Валидация и ensure ---
 check_version      = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image 1.7.6)"; echo "Поддерживаемые версии: $(GCRYPT_VERSIONS)"; exit 1; fi
 check_src_file     = @test -f $(ARTIFACTS_SRC)/libgcrypt-$(V).tar.bz2 || (echo "Ошибка: $(ARTIFACTS_SRC)/libgcrypt-$(V).tar.bz2 не найден"; echo "Выполните: make download $(V)"; exit 1)
-ensure = @$(_INSPECT) $(call image_name,$(1)) > /dev/null 2>&1 || $(MAKE) image V=$(1)
+ensure = @$(call _ensure_check,$(call image_name,$(1))) $(MAKE) image V=$(1)
 
 .DEFAULT_GOAL := help
 
@@ -108,11 +108,11 @@ deps:
 image:
 	$(call check_version)
 	$(call check_src_file)
-	$(foreach d,$(_ALL_DEPS),$(call check_dep,$(d)))
+	@$(foreach d,$(_ALL_DEPS),$(call check_dep,$(d)))
 	$(_BUILD) \
 	  $(_BUILD_ARGS) \
 	  $(_LABELS) \
-	  -f $(or $(DOCKERFILE),Dockerfile) \
+	  -f $(_DOCKERFILE) \
 	  -t $(_IMAGE) .
 	mkdir -p $(ARTIFACTS_IMAGES)
 	$(call _save,$(_IMAGE),$(ARTIFACTS_IMAGES)/$(_TAR_NAME))

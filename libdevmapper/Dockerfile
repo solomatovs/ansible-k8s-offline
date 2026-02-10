@@ -1,9 +1,10 @@
-# Сборка статической библиотеки libdevmapper из LVM2.
+# Сборка статической и динамической библиотеки libdevmapper из LVM2.
 # Результат: /out (--prefix=/usr)
 #   /out/usr/lib/libdevmapper.a       — статическая библиотека
+#   /out/usr/lib/libdevmapper.so*     — динамическая библиотека
 #   /out/usr/include/libdevmapper.h   — заголовочный файл
 #   /out/usr/lib/pkgconfig/devmapper.pc — pkg-config
-# Использование: COPY --from=libdevmapper-astra:2.03.25-build /out /
+# Использование: COPY --from=libdevmapper:2.03.25-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
 
@@ -39,7 +40,7 @@ RUN ./configure \
       --disable-udev_rules \
  && make -j$(nproc) -C libdm
 
-RUN make -C libdm DESTDIR=/out install_static install_include install_pkgconfig
+RUN make -C libdm DESTDIR=/out install_static install_dynamic install_include install_pkgconfig
 
 # Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}

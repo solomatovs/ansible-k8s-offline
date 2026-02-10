@@ -40,8 +40,8 @@ check_version  = @if [ -z "$(V)" ]; then echo "Ошибка: укажите ве
 check_src_file = @test -f $(ARTIFACTS_SRC)/golang-$(V).tar.gz || (echo "Ошибка: $(ARTIFACTS_SRC)/golang-$(V).tar.gz не найден"; echo "Выполните: make download $(V)"; exit 1)
 
 # --- Ensure (внутренние зависимости — автосборка если нет) ---
-ensure         = @$(_INSPECT) $(call image_name,$(1)) > /dev/null 2>&1 || $(MAKE) image V=$(1) T=build
-ensure_runtime = @$(_INSPECT) $(call runtime_name,$(1)) > /dev/null 2>&1 || $(MAKE) image V=$(1) T=runtime
+ensure         = @$(call _ensure_check,$(call image_name,$(1))) $(MAKE) image V=$(1) T=build
+ensure_runtime = @$(call _ensure_check,$(call runtime_name,$(1))) $(MAKE) image V=$(1) T=runtime
 
 # --- Вычисляемые переменные для текущих V и T ---
 _BOOTSTRAP  = $(BOOTSTRAP_VERSION)

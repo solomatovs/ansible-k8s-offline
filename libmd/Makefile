@@ -24,12 +24,19 @@ _IMAGE      = $(call image_name,$(V))
 _BUILD_ARGS = --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg LIBMD_VERSION=$(V)
 _LABELS     = $(call labels,$(V))
 _TAR_NAME   = libmd-$(V)-build.tar
-_TEST_CMD   = sh -c 'test -f /out/usr/lib/libmd.a && test -f /out/usr/include/md5.h && ls -lh /out/usr/lib/libmd.a && echo "libmd build: ok"'
+_TEST_CMD   = sh -c '\
+	echo "=== files ===" && \
+	test -f /out/usr/lib/libmd.a && \
+	test -f /out/usr/include/md5.h && \
+	ls -lh /out/usr/lib/libmd.a && \
+	echo "=== shared libraries ===" && \
+	find /out -name "*.so*" -exec ls -lh {} \; && \
+	echo "" && echo "libmd build: ok"'
 
 # --- Валидация и ensure ---
 check_version = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image 1.1.0)"; echo "Поддерживаемые версии: $(LIBMD_VERSIONS)"; exit 1; fi
 
-ensure = @$(_INSPECT) $(call image_name,$(1)) > /dev/null 2>&1 || $(MAKE) image V=$(1)
+ensure = @$(call _ensure_check,$(call image_name,$(1))) $(MAKE) image V=$(1)
 
 .DEFAULT_GOAL := help
 
@@ -75,7 +82,7 @@ image:
 	$(_BUILD) \
 	  $(_BUILD_ARGS) \
 	  $(_LABELS) \
-	  -f $(or $(DOCKERFILE),Dockerfile) \
+	  -f $(_DOCKERFILE) \
 	  -t $(_IMAGE) .
 	mkdir -p $(ARTIFACTS_IMAGES)
 	$(call _save,$(_IMAGE),$(ARTIFACTS_IMAGES)/$(_TAR_NAME))

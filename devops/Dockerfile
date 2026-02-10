@@ -3,9 +3,9 @@
 # Бинарные зависимости подаются как файлы из artifacts/deps/ (make deps).
 #
 # Зависимости (должны быть извлечены до сборки: make deps):
-#   - artifacts/deps/dpkg-astra-1.23.5.tar.gz
-#   - artifacts/deps/buildah-astra-1.38.0.tar.gz
-#   - artifacts/deps/golang-astra-1.24.5.tar.gz
+#   - artifacts/deps/dpkg-1.23.5.tar.gz
+#   - artifacts/deps/buildah-1.38.0.tar.gz
+#   - artifacts/deps/golang-1.24.5.tar.gz
 #
 # Образ не привязан к конкретному пользователю —
 # можно запустить под любым uid если смонтировать:
@@ -26,19 +26,19 @@ ARG GO_VERSION
 ENV DEBIAN_FRONTEND=noninteractive
 
 # --- dpkg (rootless-патченный, статические бинарники) ---
-COPY artifacts/deps/dpkg-astra-${DPKG_VERSION}.tar.gz /build/
-RUN tar xzf /build/dpkg-astra-${DPKG_VERSION}.tar.gz -C / \
- && rm /build/dpkg-astra-${DPKG_VERSION}.tar.gz
+COPY artifacts/deps/dpkg-${DPKG_VERSION}.tar.gz /build/
+RUN tar xzf /build/dpkg-${DPKG_VERSION}.tar.gz -C / \
+ && rm /build/dpkg-${DPKG_VERSION}.tar.gz
 
 # --- buildah (статический бинарник) ---
-COPY artifacts/deps/buildah-astra-${BUILDAH_VERSION}.tar.gz /build/
-RUN tar xzf /build/buildah-astra-${BUILDAH_VERSION}.tar.gz -C / \
- && rm /build/buildah-astra-${BUILDAH_VERSION}.tar.gz
+COPY artifacts/deps/buildah-${BUILDAH_VERSION}.tar.gz /build/
+RUN tar xzf /build/buildah-${BUILDAH_VERSION}.tar.gz -C / \
+ && rm /build/buildah-${BUILDAH_VERSION}.tar.gz
 
 # --- golang ---
-COPY artifacts/deps/golang-astra-${GO_VERSION}.tar.gz /build/
-RUN tar xzf /build/golang-astra-${GO_VERSION}.tar.gz -C / \
- && rm /build/golang-astra-${GO_VERSION}.tar.gz
+COPY artifacts/deps/golang-${GO_VERSION}.tar.gz /build/
+RUN tar xzf /build/golang-${GO_VERSION}.tar.gz -C / \
+ && rm /build/golang-${GO_VERSION}.tar.gz
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 

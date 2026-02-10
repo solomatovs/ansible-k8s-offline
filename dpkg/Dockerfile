@@ -24,9 +24,9 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # libmd — статическая библиотека из отдельного проекта (make deps)
-COPY artifacts/deps/libmd-astra-${LIBMD_VERSION}.tar.gz /build/
-RUN tar xzf /build/libmd-astra-${LIBMD_VERSION}.tar.gz -C / \
- && rm /build/libmd-astra-${LIBMD_VERSION}.tar.gz
+COPY artifacts/deps/libmd-${LIBMD_VERSION}.tar.gz /build/
+RUN tar xzf /build/libmd-${LIBMD_VERSION}.tar.gz -C / \
+ && rm /build/libmd-${LIBMD_VERSION}.tar.gz
 
 WORKDIR /build
 

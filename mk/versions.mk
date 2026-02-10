@@ -22,3 +22,7 @@ V := $(or $(V),$(firstword $(_VERSION_ARGS)))
 ifdef V
 -include versions/$(V).mk
 endif
+
+# Автовыбор Dockerfile: Dockerfile.$(V) если существует, иначе Dockerfile.
+# Перезадать: DOCKERFILE=custom или определить _DOCKERFILE после include.
+_DOCKERFILE = $(if $(DOCKERFILE),$(DOCKERFILE),$(if $(wildcard Dockerfile.$(V)),Dockerfile.$(V),Dockerfile))

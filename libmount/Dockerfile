@@ -1,15 +1,15 @@
-# Сборка статических библиотек libmount, libblkid и libuuid из util-linux.
+# Сборка статических и динамических библиотек libmount, libblkid и libuuid из util-linux.
 # Результат: /out (--prefix=/usr)
-#   /out/usr/lib/libmount.a              — статическая библиотека
-#   /out/usr/lib/libblkid.a              — статическая библиотека
-#   /out/usr/lib/libuuid.a               — статическая библиотека
-#   /out/usr/include/libmount/libmount.h — заголовочный файл
-#   /out/usr/include/blkid/blkid.h       — заголовочный файл
-#   /out/usr/include/uuid/uuid.h         — заголовочный файл
-#   /out/usr/lib/pkgconfig/mount.pc      — pkg-config
-#   /out/usr/lib/pkgconfig/blkid.pc      — pkg-config
-#   /out/usr/lib/pkgconfig/uuid.pc       — pkg-config
-# Использование: COPY --from=libmount-astra:2.30.2-build /out /
+#   /out/usr/lib/libmount.{a,so*}          — статическая и динамическая библиотека
+#   /out/usr/lib/libblkid.{a,so*}          — статическая и динамическая библиотека
+#   /out/usr/lib/libuuid.{a,so*}           — статическая и динамическая библиотека
+#   /out/usr/include/libmount/libmount.h   — заголовочный файл
+#   /out/usr/include/blkid/blkid.h         — заголовочный файл
+#   /out/usr/include/uuid/uuid.h           — заголовочный файл
+#   /out/usr/lib/pkgconfig/mount.pc        — pkg-config
+#   /out/usr/lib/pkgconfig/blkid.pc        — pkg-config
+#   /out/usr/lib/pkgconfig/uuid.pc         — pkg-config
+# Использование: COPY --from=libmount:2.30.2-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
 
@@ -49,7 +49,7 @@ RUN echo "${UTIL_LINUX_VERSION}" > .tarball-version \
       --prefix=/usr \
       --libdir=/usr/lib \
       --enable-static \
-      --disable-shared \
+      --enable-shared \
       --disable-all-programs \
       --enable-libblkid \
       --enable-libmount \
@@ -60,7 +60,6 @@ RUN echo "${UTIL_LINUX_VERSION}" > .tarball-version \
  && make -j$(nproc) \
  && make DESTDIR=/out install \
  && find /out -name '*.la' -delete \
- && find /out -name '*.so*' -delete \
  && { rm -rf /out/usr/share /out/usr/sbin /out/usr/bin 2>/dev/null || true; }
 
 # Финальный образ — только результат сборки.

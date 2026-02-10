@@ -40,7 +40,7 @@ BUILD_ARGS := \
 	--build-arg GO_VERSION=$(GO_VERSION)
 
 # --- Ensure (внутренние зависимости — автосборка если нет) ---
-ensure = @$(_INSPECT) $(DEVOPS_IMAGE) > /dev/null 2>&1 || $(MAKE) image
+ensure = @$(call _ensure_check,$(DEVOPS_IMAGE)) $(MAKE) image
 
 .DEFAULT_GOAL := help
 
@@ -79,9 +79,9 @@ deps:
 # =============================================================================
 
 image:
-	$(call check_dep,$(_DPKG_DEP))
-	$(call check_dep,$(_BUILDAH_DEP))
-	$(call check_dep,$(_GO_DEP))
+	@$(call check_dep,$(_DPKG_DEP))
+	@$(call check_dep,$(_BUILDAH_DEP))
+	@$(call check_dep,$(_GO_DEP))
 	$(_BUILD) \
 	  $(BUILD_ARGS) \
 	  $(LABELS) \

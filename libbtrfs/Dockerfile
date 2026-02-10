@@ -1,11 +1,11 @@
-# Сборка статических библиотек libbtrfs и libbtrfsutil из btrfs-progs.
+# Сборка статических и динамических библиотек libbtrfs и libbtrfsutil из btrfs-progs.
 # Результат: /out (--prefix=/usr)
-#   /out/usr/lib/libbtrfs.a           — статическая библиотека
-#   /out/usr/lib/libbtrfsutil.a       — статическая библиотека
-#   /out/usr/include/btrfs/*.h        — заголовочные файлы btrfs
-#   /out/usr/include/btrfsutil.h      — заголовочный файл btrfsutil
+#   /out/usr/lib/libbtrfs.{a,so*}          — статическая и динамическая библиотека
+#   /out/usr/lib/libbtrfsutil.{a,so*}      — статическая и динамическая библиотека
+#   /out/usr/include/btrfs/*.h             — заголовочные файлы btrfs
+#   /out/usr/include/btrfsutil.h           — заголовочный файл btrfsutil
 #   /out/usr/lib/pkgconfig/libbtrfsutil.pc — pkg-config
-# Использование: COPY --from=libbtrfs-astra:6.6.3-build /out /
+# Использование: COPY --from=libbtrfs:6.6.3-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
 
@@ -48,11 +48,13 @@ RUN ./autogen.sh \
       --disable-documentation \
       --disable-programs \
       --disable-python \
- && make -j$(nproc) libbtrfs.a libbtrfsutil.a
+ && make -j$(nproc)
 
 RUN mkdir -p /out/usr/lib /out/usr/include/btrfs /out/usr/lib/pkgconfig \
  && cp libbtrfs.a /out/usr/lib/ \
  && cp libbtrfsutil.a /out/usr/lib/ \
+ && cp -a libbtrfs.so* /out/usr/lib/ 2>/dev/null || true \
+ && cp -a libbtrfsutil/libbtrfsutil.so* /out/usr/lib/ 2>/dev/null || true \
  && cp libbtrfs/*.h /out/usr/include/btrfs/ \
  && cp libbtrfsutil/btrfsutil.h /out/usr/include/ \
  && cp libbtrfsutil/libbtrfsutil.pc /out/usr/lib/pkgconfig/ 2>/dev/null || true

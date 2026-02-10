@@ -29,46 +29,46 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Go компилятор из отдельного проекта (make deps)
-COPY artifacts/deps/golang-astra-${GO_VERSION}.tar.gz /build/
-RUN tar xzf /build/golang-astra-${GO_VERSION}.tar.gz -C / \
- && rm /build/golang-astra-${GO_VERSION}.tar.gz
+COPY artifacts/deps/golang-${GO_VERSION}.tar.gz /build/
+RUN tar xzf /build/golang-${GO_VERSION}.tar.gz -C / \
+ && rm /build/golang-${GO_VERSION}.tar.gz
 
 ENV GOROOT=/usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
 
 # C-библиотеки для статической линковки (make deps)
-COPY artifacts/deps/libdevmapper-astra-${DEVMAPPER_VERSION}.tar.gz /build/
-RUN tar xzf /build/libdevmapper-astra-${DEVMAPPER_VERSION}.tar.gz -C / \
- && rm /build/libdevmapper-astra-${DEVMAPPER_VERSION}.tar.gz
+COPY artifacts/deps/libdevmapper-${DEVMAPPER_VERSION}.tar.gz /build/
+RUN tar xzf /build/libdevmapper-${DEVMAPPER_VERSION}.tar.gz -C / \
+ && rm /build/libdevmapper-${DEVMAPPER_VERSION}.tar.gz
 
-COPY artifacts/deps/libbtrfs-astra-${BTRFS_VERSION}.tar.gz /build/
-RUN tar xzf /build/libbtrfs-astra-${BTRFS_VERSION}.tar.gz -C / \
- && rm /build/libbtrfs-astra-${BTRFS_VERSION}.tar.gz
+COPY artifacts/deps/libbtrfs-${BTRFS_VERSION}.tar.gz /build/
+RUN tar xzf /build/libbtrfs-${BTRFS_VERSION}.tar.gz -C / \
+ && rm /build/libbtrfs-${BTRFS_VERSION}.tar.gz
 
-COPY artifacts/deps/libseccomp-astra-${SECCOMP_VERSION}.tar.gz /build/
-RUN tar xzf /build/libseccomp-astra-${SECCOMP_VERSION}.tar.gz -C / \
- && rm /build/libseccomp-astra-${SECCOMP_VERSION}.tar.gz
+COPY artifacts/deps/libseccomp-${SECCOMP_VERSION}.tar.gz /build/
+RUN tar xzf /build/libseccomp-${SECCOMP_VERSION}.tar.gz -C / \
+ && rm /build/libseccomp-${SECCOMP_VERSION}.tar.gz
 
-COPY artifacts/deps/libsystemd-astra-${SYSTEMD_VERSION}.tar.gz /build/
-RUN tar xzf /build/libsystemd-astra-${SYSTEMD_VERSION}.tar.gz -C / \
- && rm /build/libsystemd-astra-${SYSTEMD_VERSION}.tar.gz
+COPY artifacts/deps/libsystemd-${SYSTEMD_VERSION}.tar.gz /build/
+RUN tar xzf /build/libsystemd-${SYSTEMD_VERSION}.tar.gz -C / \
+ && rm /build/libsystemd-${SYSTEMD_VERSION}.tar.gz
 
 # Транзитивные C-зависимости для статической линковки (make deps)
-COPY artifacts/deps/libcap-astra-${LIBCAP_VERSION}.tar.gz /build/
-RUN tar xzf /build/libcap-astra-${LIBCAP_VERSION}.tar.gz -C / \
- && rm /build/libcap-astra-${LIBCAP_VERSION}.tar.gz
+COPY artifacts/deps/libcap-${LIBCAP_VERSION}.tar.gz /build/
+RUN tar xzf /build/libcap-${LIBCAP_VERSION}.tar.gz -C / \
+ && rm /build/libcap-${LIBCAP_VERSION}.tar.gz
 
-COPY artifacts/deps/libmount-astra-${LIBMOUNT_VERSION}.tar.gz /build/
-RUN tar xzf /build/libmount-astra-${LIBMOUNT_VERSION}.tar.gz -C / \
- && rm /build/libmount-astra-${LIBMOUNT_VERSION}.tar.gz
+COPY artifacts/deps/libmount-${LIBMOUNT_VERSION}.tar.gz /build/
+RUN tar xzf /build/libmount-${LIBMOUNT_VERSION}.tar.gz -C / \
+ && rm /build/libmount-${LIBMOUNT_VERSION}.tar.gz
 
-COPY artifacts/deps/libgpg-error-astra-${GPG_ERROR_VERSION}.tar.gz /build/
-RUN tar xzf /build/libgpg-error-astra-${GPG_ERROR_VERSION}.tar.gz -C / \
- && rm /build/libgpg-error-astra-${GPG_ERROR_VERSION}.tar.gz
+COPY artifacts/deps/libgpg-error-${GPG_ERROR_VERSION}.tar.gz /build/
+RUN tar xzf /build/libgpg-error-${GPG_ERROR_VERSION}.tar.gz -C / \
+ && rm /build/libgpg-error-${GPG_ERROR_VERSION}.tar.gz
 
-COPY artifacts/deps/libgcrypt-astra-${GCRYPT_VERSION}.tar.gz /build/
-RUN tar xzf /build/libgcrypt-astra-${GCRYPT_VERSION}.tar.gz -C / \
- && rm /build/libgcrypt-astra-${GCRYPT_VERSION}.tar.gz
+COPY artifacts/deps/libgcrypt-${GCRYPT_VERSION}.tar.gz /build/
+RUN tar xzf /build/libgcrypt-${GCRYPT_VERSION}.tar.gz -C / \
+ && rm /build/libgcrypt-${GCRYPT_VERSION}.tar.gz
 
 WORKDIR /build
 

@@ -17,15 +17,23 @@ LC ?= $(LIBCAP_VERSION)
 LM ?= $(LIBMOUNT_VERSION)
 GE ?= $(GPG_ERROR_VERSION)
 GC ?= $(GCRYPT_VERSION)
+SC ?= $(SECCOMP_VERSION)
+XZ ?= $(LZMA_VERSION)
+LZ ?= $(LZ4_VERSION)
+SE ?= $(SELINUX_VERSION)
 
 # Имена файлов бинарных зависимостей (условные — пустые если версия не задана)
 _LIBCAP_DEP     = $(if $(LC),$(ARTIFACTS_DEPS)/libcap-$(LC).tar.gz)
 _LIBMOUNT_DEP   = $(if $(LM),$(ARTIFACTS_DEPS)/libmount-$(LM).tar.gz)
 _GPG_ERROR_DEP  = $(if $(GE),$(ARTIFACTS_DEPS)/libgpg-error-$(GE).tar.gz)
 _GCRYPT_DEP     = $(if $(GC),$(ARTIFACTS_DEPS)/libgcrypt-$(GC).tar.gz)
+_SECCOMP_DEP    = $(if $(SC),$(ARTIFACTS_DEPS)/libseccomp-$(SC).tar.gz)
+_LZMA_DEP       = $(if $(XZ),$(ARTIFACTS_DEPS)/liblzma-$(XZ).tar.gz)
+_LZ4_DEP        = $(if $(LZ),$(ARTIFACTS_DEPS)/liblz4-$(LZ).tar.gz)
+_SELINUX_DEP    = $(if $(SE),$(ARTIFACTS_DEPS)/libselinux-$(SE).tar.gz)
 
 # Список активных deps (пустые автоматически исключаются)
-_ALL_DEPS = $(strip $(_LIBCAP_DEP) $(_LIBMOUNT_DEP) $(_GPG_ERROR_DEP) $(_GCRYPT_DEP))
+_ALL_DEPS = $(strip $(_LIBCAP_DEP) $(_LIBMOUNT_DEP) $(_GPG_ERROR_DEP) $(_GCRYPT_DEP) $(_SECCOMP_DEP) $(_LZMA_DEP) $(_LZ4_DEP) $(_SELINUX_DEP))
 
 include ../mk/backend.mk
 include ../mk/deps.mk
@@ -35,6 +43,10 @@ $(eval $(call dep_rule,libcap,libcap))
 $(eval $(call dep_rule,libmount,libmount))
 $(eval $(call dep_rule,libgpg-error,libgpg-error))
 $(eval $(call dep_rule,libgcrypt,libgcrypt))
+$(eval $(call dep_rule,libseccomp,libseccomp))
+$(eval $(call dep_rule,liblzma,liblzma))
+$(eval $(call dep_rule,liblz4,liblz4))
+$(eval $(call dep_rule,libselinux,libselinux))
 
 # --- Имена образов ---
 image_name = libsystemd:$(1)-build
@@ -53,7 +65,11 @@ _BUILD_ARGS = \
 	$(if $(LC),--build-arg LIBCAP_VERSION=$(LC)) \
 	$(if $(LM),--build-arg LIBMOUNT_VERSION=$(LM)) \
 	$(if $(GE),--build-arg GPG_ERROR_VERSION=$(GE)) \
-	$(if $(GC),--build-arg GCRYPT_VERSION=$(GC))
+	$(if $(GC),--build-arg GCRYPT_VERSION=$(GC)) \
+	$(if $(SC),--build-arg SECCOMP_VERSION=$(SC)) \
+	$(if $(XZ),--build-arg LZMA_VERSION=$(XZ)) \
+	$(if $(LZ),--build-arg LZ4_VERSION=$(LZ)) \
+	$(if $(SE),--build-arg SELINUX_VERSION=$(SE))
 _LABELS     = $(call labels,$(V))
 _TAR_NAME   = libsystemd-$(V)-build.tar
 _TEST_CMD   = sh -c '\
@@ -64,8 +80,8 @@ _TEST_CMD   = sh -c '\
 	ls -lh /out/usr/lib/libsystemd.a && \
 	echo "=== file type ===" && \
 	head -c 7 /out/usr/lib/libsystemd.a && echo "" && \
-	echo "=== no .so files ===" && \
-	(find /out -name "*.so*" | grep . && echo "FAIL: shared libraries found" && exit 1 || echo "ok: no shared libraries") && \
+	echo "=== shared libraries ===" && \
+	find /out -name "*.so*" -exec ls -lh {} \; && \
 	echo "=== pkg-config ===" && \
 	cat /out/usr/lib/pkgconfig/libsystemd.pc && \
 	echo "" && echo "libsystemd build: ok"'
@@ -73,7 +89,7 @@ _TEST_CMD   = sh -c '\
 # --- Валидация и ensure ---
 check_version       = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image 241)"; echo "Поддерживаемые версии: $(SYSTEMD_VERSIONS)"; exit 1; fi
 check_src_file      = @test -f $(ARTIFACTS_SRC)/systemd-$(V).tar.gz || (echo "Ошибка: $(ARTIFACTS_SRC)/systemd-$(V).tar.gz не найден"; echo "Выполните: make download $(V)"; exit 1)
-ensure = @$(_INSPECT) $(call image_name,$(1)) > /dev/null 2>&1 || $(MAKE) image V=$(1)
+ensure = @$(call _ensure_check,$(call image_name,$(1))) $(MAKE) image V=$(1)
 
 .DEFAULT_GOAL := help
 
@@ -100,6 +116,10 @@ help:
 	@echo "    libmount:<LM>-build        → artifacts/deps/"
 	@echo "    libgpg-error:<GE>-build    → artifacts/deps/"
 	@echo "    libgcrypt:<GC>-build       → artifacts/deps/"
+	@echo "    libseccomp:<SC>-build      → artifacts/deps/"
+	@echo "    liblzma:<XZ>-build         → artifacts/deps/"
+	@echo "    liblz4:<LZ>-build          → artifacts/deps/"
+	@echo "    libselinux:<SE>-build      → artifacts/deps/"
 	@echo ""
 	@echo "  Примеры:"
 	@echo "    make docker/image 241"
@@ -128,11 +148,11 @@ deps:
 image:
 	$(call check_version)
 	$(call check_src_file)
-	$(foreach d,$(_ALL_DEPS),$(call check_dep,$(d)))
+	@$(foreach d,$(_ALL_DEPS),$(call check_dep,$(d)))
 	$(_BUILD) \
 	  $(_BUILD_ARGS) \
 	  $(_LABELS) \
-	  -f $(or $(DOCKERFILE),Dockerfile) \
+	  -f $(_DOCKERFILE) \
 	  -t $(_IMAGE) .
 	mkdir -p $(ARTIFACTS_IMAGES)
 	$(call _save,$(_IMAGE),$(ARTIFACTS_IMAGES)/$(_TAR_NAME))
