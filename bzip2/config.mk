@@ -1,0 +1,4 @@
+# config.mk — настройки по умолчанию
+# Переопределить: создать config.local.mk или задать переменные окружения.
+
+SOURCEWARE_URL ?= https://sourceware.org/pub

@@ -3,3 +3,6 @@
 # Подробнее: см. config.local.mk.example
 
 DEBIAN_MIRROR ?= http://deb.debian.org/debian
+
+# Build tools
+BZIP2_VERSION ?= 1.0.8

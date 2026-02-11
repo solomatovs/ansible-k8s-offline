@@ -15,6 +15,9 @@ ARG BTRFS_VERSION=6.6.3
 ARG ZLIB_VERSION=1.3.1
 ARG ZSTD_VERSION=1.5.5
 ARG LIBMOUNT_VERSION=2.30.2
+ARG LZO_VERSION=2.10
+ARG E2FSPROGS_VERSION=1.47.0
+ARG LIBUDEV_VERSION=241
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -24,14 +27,26 @@ RUN apt-get update \
         pkg-config \
         autoconf \
         automake \
-        liblzo2-dev \
-        e2fslibs-dev \
-        libudev-dev \
         python3 \
         python3-setuptools \
  && rm -rf /var/lib/apt/lists/*
 
 # C-зависимости из наших сборок (вместо apt -dev пакетов)
+COPY artifacts/deps/lzo-${LZO_VERSION}.tar.gz /build/
+RUN tar xzf /build/lzo-${LZO_VERSION}.tar.gz -C / \
+ && ldconfig \
+ && rm /build/lzo-${LZO_VERSION}.tar.gz
+
+COPY artifacts/deps/e2fsprogs-${E2FSPROGS_VERSION}.tar.gz /build/
+RUN tar xzf /build/e2fsprogs-${E2FSPROGS_VERSION}.tar.gz -C / \
+ && ldconfig \
+ && rm /build/e2fsprogs-${E2FSPROGS_VERSION}.tar.gz
+
+COPY artifacts/deps/libudev-${LIBUDEV_VERSION}.tar.gz /build/
+RUN tar xzf /build/libudev-${LIBUDEV_VERSION}.tar.gz -C / \
+ && ldconfig \
+ && rm /build/libudev-${LIBUDEV_VERSION}.tar.gz
+
 COPY artifacts/deps/zlib-${ZLIB_VERSION}.tar.gz /build/
 RUN tar xzf /build/zlib-${ZLIB_VERSION}.tar.gz -C / \
  && rm /build/zlib-${ZLIB_VERSION}.tar.gz

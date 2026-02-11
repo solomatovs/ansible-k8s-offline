@@ -3,3 +3,6 @@
 # Подробнее: см. config.local.mk.example
 
 GITHUB_URL ?= https://github.com
+
+# Build tools
+BISON_VERSION ?= 3.8.2

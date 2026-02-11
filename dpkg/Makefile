@@ -9,6 +9,7 @@ T ?= runtime
 L ?= $(LIBMD_VERSION)
 XZ ?= $(LZMA_VERSION)
 ZS ?= $(ZSTD_VERSION)
+BZ ?= $(BZIP2_VERSION)
 
 ARTIFACTS_SRC    := artifacts/src
 ARTIFACTS_DEPS   := artifacts/deps
@@ -16,12 +17,13 @@ ARTIFACTS_BUILD  := artifacts/build
 ARTIFACTS_IMAGES := artifacts/images
 
 # Имена файлов бинарных зависимостей (условные — пустые если версия не задана)
-_LIBMD_DEP = $(if $(L),$(ARTIFACTS_DEPS)/libmd-$(L).tar.gz)
-_LZMA_DEP  = $(if $(XZ),$(ARTIFACTS_DEPS)/liblzma-$(XZ).tar.gz)
-_ZSTD_DEP  = $(if $(ZS),$(ARTIFACTS_DEPS)/zstd-$(ZS).tar.gz)
+_LIBMD_DEP  = $(if $(L),$(ARTIFACTS_DEPS)/libmd-$(L).tar.gz)
+_LZMA_DEP   = $(if $(XZ),$(ARTIFACTS_DEPS)/liblzma-$(XZ).tar.gz)
+_ZSTD_DEP   = $(if $(ZS),$(ARTIFACTS_DEPS)/zstd-$(ZS).tar.gz)
+_BZIP2_DEP  = $(if $(BZ),$(ARTIFACTS_DEPS)/bzip2-$(BZ).tar.gz)
 
 # Список активных deps (пустые автоматически исключаются)
-_ALL_DEPS = $(strip $(_LIBMD_DEP) $(_LZMA_DEP) $(_ZSTD_DEP))
+_ALL_DEPS = $(strip $(_LIBMD_DEP) $(_LZMA_DEP) $(_ZSTD_DEP) $(_BZIP2_DEP))
 
 include ../mk/backend.mk
 include ../mk/deps.mk
@@ -30,6 +32,7 @@ include ../mk/deps.mk
 $(eval $(call dep_rule,libmd,libmd))
 $(eval $(call dep_rule,liblzma,liblzma))
 $(eval $(call dep_rule,zstd,zstd))
+$(eval $(call dep_rule,bzip2,bzip2))
 
 # --- Имена образов ---
 image_name   = dpkg:$(1)-build
@@ -47,7 +50,7 @@ _DOCKERFILE = $(if $(filter runtime,$(T)),$(or $(DOCKERFILE_RUNTIME),Dockerfile.
 
 _BUILD_ARGS = $(if $(filter runtime,$(T)),\
   --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg BUILD_IMAGE=$(call image_name,$(V)),\
-  --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg DPKG_VERSION=$(V) $(if $(L),--build-arg LIBMD_VERSION=$(L)) $(if $(XZ),--build-arg LZMA_VERSION=$(XZ)) $(if $(ZS),--build-arg ZSTD_VERSION=$(ZS)))
+  --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg DPKG_VERSION=$(V) $(if $(L),--build-arg LIBMD_VERSION=$(L)) $(if $(XZ),--build-arg LZMA_VERSION=$(XZ)) $(if $(ZS),--build-arg ZSTD_VERSION=$(ZS)) $(if $(BZ),--build-arg BZIP2_VERSION=$(BZ)))
 
 _LABELS     = $(call labels,$(if $(filter runtime,$(T)),dpkg-astra,dpkg),$(V),$(T))
 _TAR_NAME   = $(if $(filter runtime,$(T)),dpkg-astra,dpkg)-$(V)-$(T).tar

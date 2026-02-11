@@ -16,6 +16,7 @@ ARG BASE_IMAGE=astra-linux:2.12
 FROM ${BASE_IMAGE} AS builder
 
 ARG UTIL_LINUX_VERSION=2.30.2
+ARG BISON_VERSION=3.8.2
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -28,8 +29,12 @@ RUN apt-get update \
         libtool \
         gettext \
         pkg-config \
-        bison \
  && rm -rf /var/lib/apt/lists/*
+
+# --- bison + m4 (build-зависимость) ---
+COPY artifacts/deps/bison-${BISON_VERSION}.tar.gz /build/
+RUN tar xzf /build/bison-${BISON_VERSION}.tar.gz -C / \
+ && rm /build/bison-${BISON_VERSION}.tar.gz
 
 WORKDIR /build
 

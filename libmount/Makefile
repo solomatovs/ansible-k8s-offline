@@ -9,6 +9,9 @@ ARTIFACTS_SRC := artifacts/src
 
 SRC_FILE = $(ARTIFACTS_SRC)/util-linux-$(V).tar.gz
 
+# Зависимости: bison
+_DEPS = bison:BI:BISON_VERSION
+
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \
 	test -f /out/usr/lib/libmount.a && \

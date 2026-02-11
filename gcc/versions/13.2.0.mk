@@ -1,0 +1,4 @@
+# GCC 13.2.0 — релиз ветки GCC 13
+GMP_VERSION  := 6.2.1
+MPFR_VERSION := 4.2.1
+MPC_VERSION  := 1.3.1

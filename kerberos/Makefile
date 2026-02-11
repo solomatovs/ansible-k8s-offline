@@ -8,7 +8,7 @@ ARTIFACTS_SRC := artifacts/src
 
 SRC_FILE = $(ARTIFACTS_SRC)/krb5-$(V).tar.gz
 
-_DEPS = openssl:OL:OPENSSL_VERSION
+_DEPS = openssl:OL:OPENSSL_VERSION bison:BI:BISON_VERSION
 
 _TEST_CMD = sh -c '\
 	echo "=== static libraries ===" && \

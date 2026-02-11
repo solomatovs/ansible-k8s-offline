@@ -9,6 +9,9 @@ ARTIFACTS_SRC := artifacts/src
 
 SRC_FILE = $(ARTIFACTS_SRC)/lvm2-$(V).tar.gz
 
+# Зависимости: libaio
+_DEPS = libaio:AI:LIBAIO_VERSION
+
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \
 	test -f /out/usr/lib/libdevmapper.a && \

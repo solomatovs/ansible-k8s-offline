@@ -11,7 +11,10 @@ SRC_FILE = $(ARTIFACTS_SRC)/btrfs-progs-$(V).tar.gz
 
 _DEPS = zlib:ZL:ZLIB_VERSION \
         zstd:ZS:ZSTD_VERSION \
-        libmount:LM:LIBMOUNT_VERSION
+        libmount:LM:LIBMOUNT_VERSION \
+        lzo:LO:LZO_VERSION \
+        e2fsprogs:EF:E2FSPROGS_VERSION \
+        libudev:UD:LIBUDEV_VERSION
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \

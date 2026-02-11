@@ -19,15 +19,20 @@ FROM ${BASE_IMAGE} AS builder-shared
 
 ARG KERBEROS_VERSION=1.20.1
 ARG OPENSSL_VERSION=1.1.1w
+ARG BISON_VERSION=3.8.2
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
     && apt-get install -y \
         build-essential \
-        bison \
         pkg-config \
  && rm -rf /var/lib/apt/lists/*
+
+# --- bison + m4 (build-зависимость) ---
+COPY artifacts/deps/bison-${BISON_VERSION}.tar.gz /build/
+RUN tar xzf /build/bison-${BISON_VERSION}.tar.gz -C / \
+ && rm /build/bison-${BISON_VERSION}.tar.gz
 
 # C-зависимость для сборки (make deps)
 COPY artifacts/deps/openssl-${OPENSSL_VERSION}.tar.gz /build/
@@ -55,15 +60,20 @@ FROM ${BASE_IMAGE} AS builder-static
 
 ARG KERBEROS_VERSION=1.20.1
 ARG OPENSSL_VERSION=1.1.1w
+ARG BISON_VERSION=3.8.2
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
     && apt-get install -y \
         build-essential \
-        bison \
         pkg-config \
  && rm -rf /var/lib/apt/lists/*
+
+# --- bison + m4 (build-зависимость) ---
+COPY artifacts/deps/bison-${BISON_VERSION}.tar.gz /build/
+RUN tar xzf /build/bison-${BISON_VERSION}.tar.gz -C / \
+ && rm /build/bison-${BISON_VERSION}.tar.gz
 
 COPY artifacts/deps/openssl-${OPENSSL_VERSION}.tar.gz /build/
 RUN tar xzf /build/openssl-${OPENSSL_VERSION}.tar.gz -C / \

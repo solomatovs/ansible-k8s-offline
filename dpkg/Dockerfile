@@ -11,6 +11,7 @@ ARG DPKG_VERSION=1.23.5
 ARG LIBMD_VERSION=1.1.0
 ARG LZMA_VERSION=5.2.2
 ARG ZSTD_VERSION=1.5.5
+ARG BZIP2_VERSION=1.0.8
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -19,11 +20,15 @@ RUN apt-get update \
         build-essential \
         xz-utils \
         pkg-config \
-        libbz2-dev \
         perl \
  && rm -rf /var/lib/apt/lists/*
 
 # C-зависимости из наших сборок (вместо apt -dev пакетов)
+COPY artifacts/deps/bzip2-${BZIP2_VERSION}.tar.gz /build/
+RUN tar xzf /build/bzip2-${BZIP2_VERSION}.tar.gz -C / \
+ && ldconfig \
+ && rm /build/bzip2-${BZIP2_VERSION}.tar.gz
+
 COPY artifacts/deps/libmd-${LIBMD_VERSION}.tar.gz /build/
 RUN tar xzf /build/libmd-${LIBMD_VERSION}.tar.gz -C / \
  && rm /build/libmd-${LIBMD_VERSION}.tar.gz

@@ -1,0 +1,4 @@
+# GCC 11.4.0 — релиз ветки GCC 11
+GMP_VERSION  := 6.2.1
+MPFR_VERSION := 4.2.1
+MPC_VERSION  := 1.3.1

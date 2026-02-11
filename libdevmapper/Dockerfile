@@ -11,6 +11,7 @@ ARG BASE_IMAGE=astra-linux:2.12
 FROM ${BASE_IMAGE} AS builder
 
 ARG LVM2_VERSION=2.03.25
+ARG LIBAIO_VERSION=0.3.113
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -18,8 +19,13 @@ RUN apt-get update \
     && apt-get install -y \
         build-essential \
         pkg-config \
-        libaio-dev \
  && rm -rf /var/lib/apt/lists/*
+
+# --- libaio (build-зависимость) ---
+COPY artifacts/deps/libaio-${LIBAIO_VERSION}.tar.gz /build/
+RUN tar xzf /build/libaio-${LIBAIO_VERSION}.tar.gz -C / \
+ && ldconfig \
+ && rm /build/libaio-${LIBAIO_VERSION}.tar.gz
 
 WORKDIR /build
 

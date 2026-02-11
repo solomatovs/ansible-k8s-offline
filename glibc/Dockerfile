@@ -1,10 +1,11 @@
-# Сборка runtime-библиотек glibc из исходников.
-# Результат: /out — только .so файлы (runtime), без headers/static/locale.
-#   /out/lib/x86_64-linux-gnu/libc-2.28.so    — основная библиотека
-#   /out/lib/x86_64-linux-gnu/ld-2.28.so      — динамический линкер
-#   /out/lib/x86_64-linux-gnu/libm-2.28.so    — math library
-#   и другие runtime .so
-# Использование: tar xzf glibc-2.28.tar.gz -C / && ldconfig
+# Сборка glibc из исходников (runtime + dev).
+# Результат: /out — runtime .so + dev-файлы (headers, .a, .o — замена libc6-dev).
+#   /out/lib/x86_64-linux-gnu/libc-2.28.so          — основная библиотека
+#   /out/lib/x86_64-linux-gnu/ld-2.28.so            — динамический линкер
+#   /out/usr/lib/x86_64-linux-gnu/libc.a             — статическая библиотека
+#   /out/usr/lib/x86_64-linux-gnu/crt1.o             — CRT startup
+#   /out/usr/include/stdio.h, stdlib.h ...           — C headers
+# Использование: COPY --from=glibc:2.28-build /out /
 #
 # Зависимости (должны быть извлечены до сборки: make deps):
 #   - artifacts/deps/bison-<version>.tar.gz
@@ -66,10 +67,9 @@ RUN mkdir build && cd build \
  && make -j$(nproc) \
  && make DESTDIR=/out install
 
-# Оставляем только runtime .so (без headers, static libs, locale, утилит)
-RUN find /out -name '*.a' -delete \
- && find /out -name '*.o' -delete \
- && rm -rf /out/usr/include /out/usr/share /out/usr/bin /out/usr/sbin \
+# Оставляем runtime .so + dev-файлы (headers, .a, .o — замена libc6-dev).
+# Удаляем документацию, locale, утилиты (кроме sln в /out/sbin/).
+RUN rm -rf /out/usr/share /out/usr/bin /out/usr/sbin \
            /out/usr/libexec /out/var /out/etc
 
 # Финальный образ — только результат сборки.

@@ -9,9 +9,12 @@ ARTIFACTS_SRC := artifacts/src
 
 SRC_FILE = $(ARTIFACTS_SRC)/libselinux-$(V).tar.gz
 
+# Зависимости: PCRE
+_DEPS = pcre:PC:PCRE_VERSION
+
 SP ?= $(SEPOL_VERSION)
 
-_EXTRA_BUILD_ARGS  = $(if $(SP),--build-arg SEPOL_VERSION=$(SP))
+_EXTRA_BUILD_ARGS  = $(if $(SP),--build-arg SEPOL_VERSION=$(SP)) $(if $(PCRE_VERSION),--build-arg PCRE_VERSION=$(PCRE_VERSION))
 _EXTRA_SRC_FILES   = $(if $(SP),$(ARTIFACTS_SRC)/libsepol-$(SP).tar.gz)
 _EXTRA_CLEAN_FILES = $(if $(SP),$(ARTIFACTS_SRC)/libsepol-$(SP).tar.gz)
 
