@@ -3,14 +3,10 @@
 
 PROJECT     := libmount
 BASE_IMAGE  := astra-linux:2.12
-VERSION_VAR := UTIL_LINUX_VERSION
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/util-linux-$(V).tar.gz
-
-# Зависимости: bison
-_DEPS = bison:BI:BISON_VERSION
+SRC_FILE = $(ARTIFACTS_SRC)/util-linux-$(PF_VERSION).tar.gz
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \

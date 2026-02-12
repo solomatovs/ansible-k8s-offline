@@ -6,22 +6,12 @@
 #   /out/usr/lib/pkgconfig/libnghttp2.pc   — pkg-config
 # Использование: COPY --from=nghttp2:1.58.0-build /out /
 
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
 ARG NGHTTP2_VERSION=1.58.0
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        pkg-config \
-        autoconf \
-        automake \
-        libtool \
- && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 

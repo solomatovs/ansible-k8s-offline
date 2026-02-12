@@ -3,13 +3,10 @@
 
 PROJECT     := libgcrypt
 BASE_IMAGE  := astra-linux:2.12
-VERSION_VAR := GCRYPT_VERSION
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/libgcrypt-$(V).tar.bz2
-
-_DEPS = libgpg-error:GE:GPG_ERROR_VERSION
+SRC_FILE = $(ARTIFACTS_SRC)/libgcrypt-$(PF_VERSION).tar.bz2
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \

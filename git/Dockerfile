@@ -7,23 +7,14 @@
 # Использование: COPY --from=git:2.42.0-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
 ARG GIT_VERSION=2.42.0
 ARG CURL_VERSION=8.4.0
 ARG ZLIB_VERSION=1.3.1
 ARG OPENSSL_VERSION=1.1.1w
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        pkg-config \
-        gettext \
-        autoconf \
- && rm -rf /var/lib/apt/lists/*
 
 # C-зависимости для сборки (make deps)
 COPY artifacts/deps/curl-${CURL_VERSION}.tar.gz /build/

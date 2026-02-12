@@ -1,18 +1,13 @@
 # Сборка GNU Gawk из исходников.
 # Результат: /out/usr/bin/gawk
 
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
 ARG GAWK_VERSION=5.2.2
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
- && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 

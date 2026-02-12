@@ -3,20 +3,10 @@
 
 PROJECT     := libsystemd
 BASE_IMAGE  := astra-linux:2.12
-VERSION_VAR := SYSTEMD_VERSION
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/systemd-$(V).tar.gz
-
-_DEPS = libcap:LC:LIBCAP_VERSION \
-        libmount:LM:LIBMOUNT_VERSION \
-        libgpg-error:GE:GPG_ERROR_VERSION \
-        libgcrypt:GC:GCRYPT_VERSION \
-        libseccomp:SC:SECCOMP_VERSION \
-        liblzma:XZ:LZMA_VERSION \
-        liblz4:LZ:LZ4_VERSION \
-        libselinux:SE:SELINUX_VERSION
+SRC_FILE = $(ARTIFACTS_SRC)/systemd-$(PF_VERSION).tar.gz
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \

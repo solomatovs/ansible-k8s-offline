@@ -4,18 +4,13 @@
 #   /out/usr/lib/x86_64-linux-gnu/libbz2.{a,so*}
 # Используется как build-зависимость: dpkg.
 
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
 ARG BZIP2_VERSION=1.0.8
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
- && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 

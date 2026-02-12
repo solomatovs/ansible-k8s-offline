@@ -8,19 +8,12 @@
 # Использование: COPY --from=openldap:2.6.6-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
 ARG OPENLDAP_VERSION=2.6.6
 ARG OPENSSL_VERSION=1.1.1w
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        groff-base \
- && rm -rf /var/lib/apt/lists/*
 
 # C-зависимость для сборки (make deps)
 COPY artifacts/deps/openssl-${OPENSSL_VERSION}.tar.gz /build/

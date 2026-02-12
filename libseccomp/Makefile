@@ -3,11 +3,10 @@
 
 PROJECT     := libseccomp
 BASE_IMAGE  := astra-linux:2.12
-VERSION_VAR := SECCOMP_VERSION
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/libseccomp-$(V).tar.gz
+SRC_FILE = $(ARTIFACTS_SRC)/libseccomp-$(PF_VERSION).tar.gz
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \
@@ -15,8 +14,6 @@ _TEST_CMD = sh -c '\
 	test -f /out/usr/include/seccomp.h && \
 	test -f /out/usr/lib/pkgconfig/libseccomp.pc && \
 	ls -lh /out/usr/lib/libseccomp.a && \
-	echo "=== file type ===" && \
-	file /out/usr/lib/libseccomp.a && \
 	echo "=== shared libraries ===" && \
 	find /out -name "*.so*" -exec ls -lh {} \; && \
 	echo "=== pkg-config ===" && \

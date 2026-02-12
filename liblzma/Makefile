@@ -3,11 +3,10 @@
 
 PROJECT     := liblzma
 BASE_IMAGE  := astra-linux:2.12
-VERSION_VAR := LZMA_VERSION
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/xz-$(V).tar.gz
+SRC_FILE = $(ARTIFACTS_SRC)/xz-$(PF_VERSION).tar.gz
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \

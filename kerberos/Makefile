@@ -6,9 +6,7 @@ BASE_IMAGE := astra-linux:2.12
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/krb5-$(V).tar.gz
-
-_DEPS = openssl:OL:OPENSSL_VERSION bison:BI:BISON_VERSION
+SRC_FILE = $(ARTIFACTS_SRC)/krb5-$(PF_VERSION).tar.gz
 
 _TEST_CMD = sh -c '\
 	echo "=== static libraries ===" && \

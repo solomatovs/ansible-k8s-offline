@@ -3,14 +3,10 @@
 
 PROJECT     := libdevmapper
 BASE_IMAGE  := astra-linux:2.12
-VERSION_VAR := LVM2_VERSION
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/lvm2-$(V).tar.gz
-
-# Зависимости: libaio
-_DEPS = libaio:AI:LIBAIO_VERSION
+SRC_FILE = $(ARTIFACTS_SRC)/lvm2-$(PF_VERSION).tar.gz
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \
@@ -19,7 +15,7 @@ _TEST_CMD = sh -c '\
 	test -f /out/usr/lib/pkgconfig/devmapper.pc && \
 	ls -lh /out/usr/lib/libdevmapper.a && \
 	echo "=== file type ===" && \
-	file /out/usr/lib/libdevmapper.a && \
+	head -c 7 /out/usr/lib/libdevmapper.a && echo "" && \
 	echo "=== shared libraries ===" && \
 	find /out -name "*.so*" -exec ls -lh {} \; && \
 	echo "=== pkg-config ===" && \

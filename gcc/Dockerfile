@@ -1,5 +1,10 @@
 # Сборка GCC (GNU Compiler Collection) из исходников.
-# GMP, MPFR, MPC собираются in-tree (помещаются в дерево исходников GCC).
+# Два режима:
+#   1) Bootstrap (TOOLCHAIN_IMAGE не задан): FROM BASE_IMAGE + apt build-essential
+#      Используется для первой версии gcc (8.5.0), собираемой системным компилятором.
+#   2) Toolchain (TOOLCHAIN_IMAGE задан): FROM TOOLCHAIN_IMAGE
+#      Используется для новых версий gcc, собираемых нашим компилятором.
+#
 # Результат: /out — полный компилятор GCC (gcc, g++, runtime-библиотеки).
 #   /out/usr/bin/gcc                          — компилятор C
 #   /out/usr/bin/g++                          — компилятор C++
@@ -7,14 +12,11 @@
 #   /out/usr/lib/x86_64-linux-gnu/libstdc++.so — C++ runtime
 # Использование: tar xzf gcc-<version>.tar.gz -C / && ldconfig
 
+ARG TOOLCHAIN_IMAGE=
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${BASE_IMAGE} AS builder
-
-ARG GCC_VERSION=8.5.0
-ARG GMP_VERSION=6.2.1
-ARG MPFR_VERSION=4.2.1
-ARG MPC_VERSION=1.3.1
+# --- Bootstrap stage: используется когда TOOLCHAIN_IMAGE не задан ---
+FROM ${BASE_IMAGE} AS base-bootstrap
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -24,31 +26,23 @@ RUN apt-get update \
         flex \
         texinfo \
         file \
+        zlib1g-dev \
+        libgmp-dev \
+        libmpfr-dev \
+        libmpc-dev \
  && rm -rf /var/lib/apt/lists/*
+
+# --- Выбор builder: toolchain если задан, иначе bootstrap ---
+FROM ${TOOLCHAIN_IMAGE:-base-bootstrap} AS builder
+
+ARG GCC_VERSION=8.5.0
 
 WORKDIR /build
 
 COPY artifacts/src/gcc-${GCC_VERSION}.tar.xz /build/
-COPY artifacts/src/gmp-${GMP_VERSION}.tar.xz /build/
-COPY artifacts/src/mpfr-${MPFR_VERSION}.tar.xz /build/
-COPY artifacts/src/mpc-${MPC_VERSION}.tar.gz /build/
 
 RUN tar xJf gcc-${GCC_VERSION}.tar.xz \
  && rm gcc-${GCC_VERSION}.tar.xz
-
-# In-tree: помещаем GMP, MPFR, MPC в дерево исходников GCC.
-# GCC configure автоматически найдёт и соберёт их вместе с компилятором.
-RUN tar xJf gmp-${GMP_VERSION}.tar.xz \
- && mv gmp-${GMP_VERSION} gcc-${GCC_VERSION}/gmp \
- && rm gmp-${GMP_VERSION}.tar.xz
-
-RUN tar xJf mpfr-${MPFR_VERSION}.tar.xz \
- && mv mpfr-${MPFR_VERSION} gcc-${GCC_VERSION}/mpfr \
- && rm mpfr-${MPFR_VERSION}.tar.xz
-
-RUN tar xzf mpc-${MPC_VERSION}.tar.gz \
- && mv mpc-${MPC_VERSION} gcc-${GCC_VERSION}/mpc \
- && rm mpc-${MPC_VERSION}.tar.gz
 
 # GCC ОБЯЗАТЕЛЬНО собирается в отдельной директории (не в source tree)
 RUN mkdir build && cd build \

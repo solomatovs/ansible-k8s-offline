@@ -6,11 +6,7 @@ BASE_IMAGE := astra-linux:2.12
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/git-$(V).tar.gz
-
-_DEPS = curl:CU:CURL_VERSION \
-        zlib:ZL:ZLIB_VERSION \
-        openssl:OL:OPENSSL_VERSION
+SRC_FILE = $(ARTIFACTS_SRC)/git-$(PF_VERSION).tar.gz
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \

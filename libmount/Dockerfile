@@ -12,24 +12,12 @@
 # Использование: COPY --from=libmount:2.30.2-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
-ARG UTIL_LINUX_VERSION=2.30.2
+ARG LIBMOUNT_VERSION=2.30.2
 ARG BISON_VERSION=3.8.2
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        autoconf \
-        automake \
-        autopoint \
-        libtool \
-        gettext \
-        pkg-config \
- && rm -rf /var/lib/apt/lists/*
 
 # --- bison + m4 (build-зависимость) ---
 COPY artifacts/deps/bison-${BISON_VERSION}.tar.gz /build/
@@ -38,17 +26,17 @@ RUN tar xzf /build/bison-${BISON_VERSION}.tar.gz -C / \
 
 WORKDIR /build
 
-COPY artifacts/src/util-linux-${UTIL_LINUX_VERSION}.tar.gz /build/
+COPY artifacts/src/util-linux-${LIBMOUNT_VERSION}.tar.gz /build/
 
 RUN mkdir -p /build/util-linux \
- && tar xzf util-linux-${UTIL_LINUX_VERSION}.tar.gz --strip-components=1 -C /build/util-linux \
- && rm util-linux-${UTIL_LINUX_VERSION}.tar.gz
+ && tar xzf util-linux-${LIBMOUNT_VERSION}.tar.gz --strip-components=1 -C /build/util-linux \
+ && rm util-linux-${LIBMOUNT_VERSION}.tar.gz
 
 WORKDIR /build/util-linux
 
 # GitHub-архив не содержит .tarball-version — создаём вручную,
 # иначе autogen.sh сгенерирует Version: UNKNOWN в .pc файлах.
-RUN echo "${UTIL_LINUX_VERSION}" > .tarball-version \
+RUN echo "${LIBMOUNT_VERSION}" > .tarball-version \
  && ./autogen.sh \
  && ./configure \
       --prefix=/usr \

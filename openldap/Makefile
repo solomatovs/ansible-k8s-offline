@@ -6,9 +6,7 @@ BASE_IMAGE := astra-linux:2.12
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/openldap-$(V).tgz
-
-_DEPS = openssl:OL:OPENSSL_VERSION
+SRC_FILE = $(ARTIFACTS_SRC)/openldap-$(PF_VERSION).tgz
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \

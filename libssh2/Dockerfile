@@ -8,23 +8,13 @@
 # Использование: COPY --from=libssh2:1.11.0-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
 ARG LIBSSH2_VERSION=1.11.0
 ARG OPENSSL_VERSION=1.1.1w
 ARG ZLIB_VERSION=1.3.1
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        pkg-config \
-        autoconf \
-        automake \
-        libtool \
- && rm -rf /var/lib/apt/lists/*
 
 # C-зависимости для сборки (make deps)
 COPY artifacts/deps/openssl-${OPENSSL_VERSION}.tar.gz /build/

@@ -7,19 +7,12 @@
 # Использование: COPY --from=libdevmapper:2.03.25-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
-ARG LVM2_VERSION=2.03.25
+ARG LIBDEVMAPPER_VERSION=2.03.25
 ARG LIBAIO_VERSION=0.3.113
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        pkg-config \
- && rm -rf /var/lib/apt/lists/*
 
 # --- libaio (build-зависимость) ---
 COPY artifacts/deps/libaio-${LIBAIO_VERSION}.tar.gz /build/
@@ -29,11 +22,11 @@ RUN tar xzf /build/libaio-${LIBAIO_VERSION}.tar.gz -C / \
 
 WORKDIR /build
 
-COPY artifacts/src/lvm2-${LVM2_VERSION}.tar.gz /build/
+COPY artifacts/src/lvm2-${LIBDEVMAPPER_VERSION}.tar.gz /build/
 
 RUN mkdir -p /build/lvm2 \
- && tar xzf lvm2-${LVM2_VERSION}.tar.gz --strip-components=1 -C /build/lvm2 \
- && rm lvm2-${LVM2_VERSION}.tar.gz
+ && tar xzf lvm2-${LIBDEVMAPPER_VERSION}.tar.gz --strip-components=1 -C /build/lvm2 \
+ && rm lvm2-${LIBDEVMAPPER_VERSION}.tar.gz
 
 WORKDIR /build/lvm2
 
@@ -47,6 +40,11 @@ RUN ./configure \
  && make -j$(nproc) -C libdm
 
 RUN make -C libdm DESTDIR=/out install_static install_dynamic install_include install_pkgconfig
+
+# Fat package: включаем libaio в /out.
+RUN cp -a /usr/lib/libaio.a /usr/lib/libaio.so* /out/usr/lib/ 2>/dev/null || true \
+ && cp -p /usr/include/libaio.h /out/usr/include/ 2>/dev/null || true \
+ && cp -p /usr/lib/pkgconfig/libaio.pc /out/usr/lib/pkgconfig/ 2>/dev/null || true
 
 # Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}

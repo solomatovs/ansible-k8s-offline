@@ -8,28 +8,17 @@
 # Использование: COPY --from=libbtrfs:6.6.3-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
-ARG BTRFS_VERSION=6.6.3
+ARG LIBBTRFS_VERSION=6.6.3
 ARG ZLIB_VERSION=1.3.1
 ARG ZSTD_VERSION=1.5.5
 ARG LIBMOUNT_VERSION=2.30.2
 ARG LZO_VERSION=2.10
 ARG E2FSPROGS_VERSION=1.47.0
 ARG LIBUDEV_VERSION=241
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        pkg-config \
-        autoconf \
-        automake \
-        python3 \
-        python3-setuptools \
- && rm -rf /var/lib/apt/lists/*
 
 # C-зависимости из наших сборок (вместо apt -dev пакетов)
 COPY artifacts/deps/lzo-${LZO_VERSION}.tar.gz /build/
@@ -61,11 +50,11 @@ RUN tar xzf /build/libmount-${LIBMOUNT_VERSION}.tar.gz -C / \
 
 WORKDIR /build
 
-COPY artifacts/src/btrfs-progs-${BTRFS_VERSION}.tar.gz /build/
+COPY artifacts/src/btrfs-progs-${LIBBTRFS_VERSION}.tar.gz /build/
 
 RUN mkdir -p /build/btrfs-progs \
- && tar xzf btrfs-progs-${BTRFS_VERSION}.tar.gz --strip-components=1 -C /build/btrfs-progs \
- && rm btrfs-progs-${BTRFS_VERSION}.tar.gz
+ && tar xzf btrfs-progs-${LIBBTRFS_VERSION}.tar.gz --strip-components=1 -C /build/btrfs-progs \
+ && rm btrfs-progs-${LIBBTRFS_VERSION}.tar.gz
 
 WORKDIR /build/btrfs-progs
 
@@ -86,6 +75,24 @@ RUN mkdir -p /out/usr/lib /out/usr/include/btrfs /out/usr/lib/pkgconfig \
  && cp kernel-lib/list.h kernel-lib/rbtree.h kernel-lib/rbtree_types.h /out/usr/include/btrfs/ \
  && cp libbtrfsutil/btrfsutil.h /out/usr/include/ \
  && cp libbtrfsutil/libbtrfsutil.pc /out/usr/lib/pkgconfig/ 2>/dev/null || true
+
+# Fat package: включаем все build-зависимости (.a, .so, headers, pkgconfig) в /out.
+RUN for lib in libz libzstd libmount libblkid libuuid liblzo2 \
+              libcom_err libe2p libext2fs libss libudev; do \
+      cp -a /usr/lib/${lib}.a /out/usr/lib/ 2>/dev/null || true; \
+      cp -a /usr/lib/${lib}.so* /out/usr/lib/ 2>/dev/null || true; \
+    done \
+ && cp -p /usr/include/zlib.h /usr/include/zconf.h /out/usr/include/ 2>/dev/null || true \
+ && cp -p /usr/include/zstd.h /out/usr/include/ 2>/dev/null || true \
+ && cp -rp /usr/include/libmount /out/usr/include/ 2>/dev/null || true \
+ && cp -rp /usr/include/blkid /out/usr/include/ 2>/dev/null || true \
+ && cp -rp /usr/include/uuid /out/usr/include/ 2>/dev/null || true \
+ && cp -p /usr/include/lzo/*.h /out/usr/include/ 2>/dev/null || true \
+ && cp -rp /usr/include/ext2fs /out/usr/include/ 2>/dev/null || true \
+ && cp -p /usr/include/libudev.h /out/usr/include/ 2>/dev/null || true \
+ && for pc in zlib libzstd mount blkid uuid lzo2 com_err e2p ext2fs ss libudev; do \
+      cp -p /usr/lib/pkgconfig/${pc}.pc /out/usr/lib/pkgconfig/ 2>/dev/null || true; \
+    done
 
 # Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}

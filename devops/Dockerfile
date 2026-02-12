@@ -38,7 +38,7 @@ ARG NGTCP2_VERSION=1.2.0
 ARG DPKG_VERSION=1.23.5
 ARG BUILDAH_VERSION=1.38.0
 ARG GIT_VERSION=2.42.0
-ARG GO_VERSION=1.24.5
+ARG GOLANG_VERSION=1.24.5
 ARG RELEASE_INFO=""
 
 # Ссылки на pre-built образы (COPY --from не запускает код, нет segfault)
@@ -89,7 +89,7 @@ ARG CURL_VERSION
 ARG DPKG_VERSION
 ARG BUILDAH_VERSION
 ARG GIT_VERSION
-ARG GO_VERSION
+ARG GOLANG_VERSION
 ARG RELEASE_INFO
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -110,9 +110,9 @@ RUN tar xzf /build/git-${GIT_VERSION}.tar.gz -C / \
  && rm /build/git-${GIT_VERSION}.tar.gz
 
 # --- golang ---
-COPY artifacts/deps/golang-${GO_VERSION}.tar.gz /build/
-RUN tar xzf /build/golang-${GO_VERSION}.tar.gz -C / \
- && rm /build/golang-${GO_VERSION}.tar.gz
+COPY artifacts/deps/golang-${GOLANG_VERSION}.tar.gz /build/
+RUN tar xzf /build/golang-${GOLANG_VERSION}.tar.gz -C / \
+ && rm /build/golang-${GOLANG_VERSION}.tar.gz
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 

@@ -7,40 +7,31 @@
 # Используется как build-зависимость: libbtrfs (btrfs-progs).
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
-ARG SYSTEMD_VERSION=241
+ARG LIBUDEV_VERSION=241
 ARG LIBCAP_VERSION=2.25
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        meson \
-        ninja-build \
-        pkg-config \
-        gperf \
-        m4 \
-        python3 \
-        python3-jinja2 \
-        gettext \
- && rm -rf /var/lib/apt/lists/*
+ARG LIBMOUNT_VERSION=2.30.2
 
 # C-зависимости из наших сборок (вместо apt -dev пакетов)
 COPY artifacts/deps/libcap-${LIBCAP_VERSION}.tar.gz /build/
 RUN tar xzf /build/libcap-${LIBCAP_VERSION}.tar.gz -C / \
- && ldconfig \
  && rm /build/libcap-${LIBCAP_VERSION}.tar.gz
+
+COPY artifacts/deps/libmount-${LIBMOUNT_VERSION}.tar.gz /build/
+RUN tar xzf /build/libmount-${LIBMOUNT_VERSION}.tar.gz -C / \
+ && ldconfig \
+ && rm /build/libmount-${LIBMOUNT_VERSION}.tar.gz
 
 WORKDIR /build
 
-COPY artifacts/src/systemd-${SYSTEMD_VERSION}.tar.gz /build/
+COPY artifacts/src/systemd-${LIBUDEV_VERSION}.tar.gz /build/
 
 RUN mkdir -p /build/systemd \
- && tar xzf systemd-${SYSTEMD_VERSION}.tar.gz --strip-components=1 -C /build/systemd \
- && rm systemd-${SYSTEMD_VERSION}.tar.gz
+ && tar xzf systemd-${LIBUDEV_VERSION}.tar.gz --strip-components=1 -C /build/systemd \
+ && rm systemd-${LIBUDEV_VERSION}.tar.gz
 
 WORKDIR /build/systemd
 
@@ -53,11 +44,14 @@ RUN meson setup build \
       -Dman=false \
       -Dhtml=false \
  && ninja -C build version.h \
- && ninja -C build libudev.a \
+ && STATIC_TARGET=$(grep -m1 -oP 'build \K\S*libudev[_a-z]*\.a(?=\s*:)' build/build.ninja) \
+ && echo "Static target: $STATIC_TARGET" \
+ && { [ -n "$STATIC_TARGET" ] && ninja -C build "$STATIC_TARGET" || true; } \
  && SO_TARGET=$(grep -m1 -oP 'build \K\S*libudev\.so\S*(?=\s*:)' build/build.ninja) \
+ && echo "SO target: $SO_TARGET" \
  && { [ -n "$SO_TARGET" ] && ninja -C build "$SO_TARGET" || true; } \
  && mkdir -p /out/usr/lib/pkgconfig /out/usr/include \
- && find build -type f -name 'libudev.a' | head -1 | xargs -I{} cp {} /out/usr/lib/ \
+ && find build -type f -name 'libudev*.a' | head -1 | xargs -I{} cp {} /out/usr/lib/libudev.a \
  && find build -type f -name 'libudev.so.*.*.*' ! -name '*.symbols' | head -1 | xargs -I{} cp {} /out/usr/lib/ \
  && ( cd /out/usr/lib \
    && SO_REAL=$(ls libudev.so.*.*.* 2>/dev/null | grep -v '\.symbols$' | head -1) \

@@ -8,26 +8,21 @@
 #   /out/usr/lib/pkgconfig/liblz4.pc   — pkg-config
 # Использование: COPY --from=liblz4:1.9.3-build /out /
 
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
-ARG LZ4_VERSION=1.9.3
+ARG LIBLZ4_VERSION=1.9.3
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
- && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
-COPY artifacts/src/lz4-${LZ4_VERSION}.tar.gz /build/
+COPY artifacts/src/lz4-${LIBLZ4_VERSION}.tar.gz /build/
 
 RUN mkdir -p /build/lz4 \
- && tar xzf lz4-${LZ4_VERSION}.tar.gz --strip-components=1 -C /build/lz4 \
- && rm lz4-${LZ4_VERSION}.tar.gz
+ && tar xzf lz4-${LIBLZ4_VERSION}.tar.gz --strip-components=1 -C /build/lz4 \
+ && rm lz4-${LIBLZ4_VERSION}.tar.gz
 
 WORKDIR /build/lz4
 

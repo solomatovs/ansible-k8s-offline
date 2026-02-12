@@ -6,7 +6,7 @@ BASE_IMAGE := astra-linux:2.12
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/libmd-$(V).tar.xz
+SRC_FILE = $(ARTIFACTS_SRC)/libmd-$(PF_VERSION).tar.xz
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \

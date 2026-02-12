@@ -1,23 +1,25 @@
 # =============================================================================
-# mk/project.mk — общее ядро для всех проектов
+# mk/project.mk — общее ядро для всех проектов (PF_ формат)
 #
 # Подключение: include ../mk/project.mk (последней строкой Makefile проекта)
 #
 # Обязательные переменные (задать ДО include):
 #   PROJECT      — имя проекта (используется для имени образа)
 #   BASE_IMAGE   — базовый Docker-образ
-#   SRC_FILE     — путь к архиву исходников, e.g. $(ARTIFACTS_SRC)/zlib-$(V).tar.gz
+#   SRC_FILE     — путь к архиву исходников, e.g. $(ARTIFACTS_SRC)/zlib-$(PF_VERSION).tar.gz
 #   _TEST_CMD    — команда тестирования образа
 #
-# Опциональные:
-#   VERSION_VAR         — имя build-arg для версии (по умолчанию: UC(PROJECT)_VERSION)
-#   _DEPS               — зависимости: image:alias:version_var (через пробелы)
+# Профиль (profiles/V.mk) должен определять:
+#   PF_VERSION     — чистая upstream-версия (обязательно)
+#   PF_DOCKERFILE  — имя Dockerfile (обязательно)
+#   PF_TOOLCHAIN   — project:profile toolchain-образа (опционально)
+#   PF_DEPS        — зависимости project:profile (через пробелы, опционально)
+#
+# Опциональные (в Makefile проекта):
 #   _EXTRA_BUILD_ARGS   — дополнительные --build-arg
 #   _EXTRA_SRC_FILES    — дополнительные файлы для скачивания
 #   _EXTRA_CLEAN_FILES  — дополнительные файлы для удаления при clean
 #   _HELP_EXTRA         — дополнительные строки для help (shell-команды)
-#
-# Также проект ДОЛЖЕН определить pattern rule для скачивания SRC_FILE.
 # =============================================================================
 
 # --- Стандартные пути артефактов ---
@@ -26,43 +28,62 @@ ARTIFACTS_DEPS   ?= artifacts/deps
 ARTIFACTS_BUILD  ?= artifacts/build
 ARTIFACTS_IMAGES ?= artifacts/images
 
-# --- Версии ---
-include ../mk/versions.mk
-
-# --- Авторазрешение транзитивных версий зависимостей ---
-include ../mk/resolve.mk
+# --- Профили ---
+include ../mk/profiles.mk
 
 # --- Backend (docker/buildah) ---
 include ../mk/backend.mk
 
-# --- Uppercase проекта (для VERSION_VAR по умолчанию) ---
-_UC_PROJECT := $(shell echo '$(PROJECT)' | tr 'a-z-' 'A-Z_')
-VERSION_VAR ?= $(_UC_PROJECT)_VERSION
-
-# =============================================================================
-# Обработка зависимостей
-# Формат _DEPS: image:alias:version_var [image:alias:version_var ...]
-# Пример: _DEPS = zlib:ZL:ZLIB_VERSION openssl:OL:OPENSSL_VERSION
-# =============================================================================
-
-ifdef _DEPS
+# --- Deps check macro ---
 include ../mk/deps.mk
-endif
 
-# Макрос инициализации одной зависимости
-# $(1)=image_prefix  $(2)=alias  $(3)=version_var
+# =============================================================================
+# Хелперы для парсинга PF_DEPS
+# Формат: project:profile_id [project:profile_id ...]
+# Пример: PF_DEPS = zlib:1.3.1-r1 openssl:1.1.1w-r1
+# =============================================================================
+
+# Извлечь имя проекта из dep spec
+_dep_prj = $(word 1,$(subst :, ,$(1)))
+# Извлечь profile ID из dep spec
+_dep_pid = $(word 2,$(subst :, ,$(1)))
+# Извлечь чистую версию (strip -rN suffix)
+_dep_ver = $(shell echo '$(call _dep_pid,$(1))' | sed 's/-r[0-9]*$$//')
+# Uppercase имя проекта (a-z → A-Z, - → _)
+_dep_uc = $(shell echo '$(call _dep_prj,$(1))' | tr 'a-z-' 'A-Z_')
+
+# =============================================================================
+# Обработка PF_DEPS
+# =============================================================================
+
+# Инициализация одной зависимости:
+# - UC(project)_VERSION = clean version
+# - dep file path → _ALL_DEP_FILES
+# - --build-arg → _DEP_BUILD_ARGS
+# $(1) = full dep spec (e.g., zlib:1.3.1-r1)
 define _init_dep
-$(2) ?= $$($(3))
-_DEP_$(2) = $$(if $$($(2)),$$(ARTIFACTS_DEPS)/$(1)-$$($(2)).tar.gz)
-_ALL_DEPS += $$(_DEP_$(2))
-_DEP_BUILD_ARGS += $$(if $$($(2)),--build-arg $(3)=$$($(2)))
+$(call _dep_uc,$(1))_VERSION := $(call _dep_ver,$(1))
+_ALL_DEP_FILES += $$(ARTIFACTS_DEPS)/$(call _dep_prj,$(1))-$(call _dep_ver,$(1)).tar.gz
+_DEP_BUILD_ARGS += --build-arg $(call _dep_uc,$(1))_VERSION=$(call _dep_ver,$(1))
 endef
 
-$(foreach dep,$(_DEPS),$(eval $(call _init_dep,$(word 1,$(subst :, ,$(dep))),$(word 2,$(subst :, ,$(dep))),$(word 3,$(subst :, ,$(dep))))))
+# Генерация правила извлечения зависимости из образа
+# $(1) = full dep spec (e.g., zlib:1.3.1-r1)
+define _gen_dep_rule
+$$(ARTIFACTS_DEPS)/$(call _dep_prj,$(1))-$(call _dep_ver,$(1)).tar.gz:
+	@$$(_INSPECT) $(call _dep_prj,$(1)):$(call _dep_pid,$(1))-build > /dev/null 2>&1 || \
+	  (echo "Error: image $(call _dep_prj,$(1)):$(call _dep_pid,$(1))-build not found"; \
+	   echo "Build first: make -C ../$(call _dep_prj,$(1)) image $(call _dep_pid,$(1))"; exit 1)
+	mkdir -p $$(ARTIFACTS_DEPS)
+	@$$(call _extract,$(call _dep_prj,$(1)):$(call _dep_pid,$(1))-build,$$@)
+endef
 
-$(foreach dep,$(_DEPS),$(eval $(call dep_rule,$(word 1,$(subst :, ,$(dep))),$(word 1,$(subst :, ,$(dep))))))
+ifdef PF_DEPS
+$(foreach dep,$(PF_DEPS),$(eval $(call _init_dep,$(dep))))
+$(foreach dep,$(PF_DEPS),$(eval $(call _gen_dep_rule,$(dep))))
+endif
 
-_ALL_DEPS := $(strip $(_ALL_DEPS))
+_ALL_DEP_FILES := $(strip $(_ALL_DEP_FILES))
 
 # --- Все исходники для download ---
 _SRC_FILES = $(SRC_FILE) $(_EXTRA_SRC_FILES)
@@ -70,6 +91,8 @@ _SRC_FILES = $(SRC_FILE) $(_EXTRA_SRC_FILES)
 # =============================================================================
 # Вычисляемые переменные
 # =============================================================================
+
+_UC_PROJECT := $(shell echo '$(PROJECT)' | tr 'a-z-' 'A-Z_')
 
 image_name = $(PROJECT):$(1)-build
 
@@ -81,16 +104,25 @@ _LABELS = \
 
 _BUILD_ARGS = \
     --build-arg BASE_IMAGE=$(BASE_IMAGE) \
-    --build-arg $(VERSION_VAR)=$(V) \
+    --build-arg $(_UC_PROJECT)_VERSION=$(PF_VERSION) \
     $(_DEP_BUILD_ARGS) \
     $(_EXTRA_BUILD_ARGS)
 
+# PF_TOOLCHAIN → --build-arg TOOLCHAIN_IMAGE
+ifdef PF_TOOLCHAIN
+_EXTRA_BUILD_ARGS += --build-arg TOOLCHAIN_IMAGE=$(call _dep_prj,$(PF_TOOLCHAIN)):$(call _dep_pid,$(PF_TOOLCHAIN))-build
+endif
+
 _TAR_NAME = $(PROJECT)-$(V)-build.tar
 
-# --- Валидация и ensure ---
+# --- Валидация ---
 check_version = @if [ -z "$(V)" ]; then \
     echo "Ошибка: укажите версию (например, make docker/image <version>)"; \
-    echo "Поддерживаемые версии: $(VERSIONS)"; exit 1; fi
+    echo "Поддерживаемые версии: $(VERSIONS)"; exit 1; fi; \
+    if [ -z "$(PF_VERSION)" ]; then \
+    echo "Ошибка: PF_VERSION не определён в profiles/$(V).mk"; exit 1; fi; \
+    if [ -z "$(PF_DOCKERFILE)" ]; then \
+    echo "Ошибка: PF_DOCKERFILE не определён в profiles/$(V).mk"; exit 1; fi
 
 ensure = @$(call _ensure_check,$(call image_name,$(1))) $(MAKE) image V=$(1)
 
@@ -100,10 +132,7 @@ ensure = @$(call _ensure_check,$(call image_name,$(1))) $(MAKE) image V=$(1)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help download image build test shell clean
-ifdef _DEPS
-.PHONY: deps
-endif
+.PHONY: help download deps image build test shell clean
 .PHONY: $(VERSIONS)
 
 help:
@@ -112,9 +141,7 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  download  <version>         Скачать исходники $(PROJECT) (требует интернет)"
-ifdef _DEPS
 	@echo "  deps      <version>         Извлечь зависимости из Docker-образов в artifacts/deps/"
-endif
 	@echo "  image     <version>         Собрать образ и экспортировать в artifacts/images/"
 	@echo "  build     <version>         Архивировать артефакты в artifacts/build/"
 	@echo "  test      <version>         Проверить артефакты"
@@ -122,12 +149,16 @@ endif
 	@echo "  clean     [version]         Удалить образы и артефакты"
 	@echo ""
 	@echo "  Поддерживаемые версии: $(VERSIONS)"
-ifdef _DEPS
+ifdef PF_TOOLCHAIN
 	@echo ""
-	@echo "  Зависимости (deps):"
-	@$(foreach dep,$(_DEPS),\
-	  printf '    %s:<%s>-build → artifacts/deps/\n' \
-	    '$(word 1,$(subst :, ,$(dep)))' '$(word 2,$(subst :, ,$(dep)))';)
+	@echo "  Toolchain: $(PF_TOOLCHAIN)"
+endif
+ifdef PF_DEPS
+	@echo ""
+	@echo "  Зависимости (PF_DEPS):"
+	@$(foreach dep,$(PF_DEPS),\
+	  printf '    %s → artifacts/deps/%s-%s.tar.gz\n' \
+	    '$(dep)' '$(call _dep_prj,$(dep))' '$(call _dep_ver,$(dep))';)
 endif
 ifdef _HELP_EXTRA
 	@echo ""
@@ -149,21 +180,24 @@ download:
 	@$(MAKE) $(_SRC_FILES)
 
 # --- Извлечение бинарных зависимостей ---
-ifdef _DEPS
+ifdef PF_DEPS
 deps:
 	$(call check_version)
-	$(if $(_ALL_DEPS),@$(MAKE) $(_ALL_DEPS))
+	$(if $(_ALL_DEP_FILES),@$(MAKE) $(_ALL_DEP_FILES))
+else
+deps:
+	@:
 endif
 
 # --- Сборка образа ---
 image:
 	$(call check_version)
 	@$(MAKE) $(_SRC_FILES)
-	$(if $(_ALL_DEPS),@$(foreach d,$(_ALL_DEPS),$(call check_dep,$(d))))
+	$(if $(_ALL_DEP_FILES),@$(foreach d,$(_ALL_DEP_FILES),$(call check_dep,$(d))))
 	$(_BUILD) \
 	  $(_BUILD_ARGS) \
 	  $(_LABELS) \
-	  -f $(_DOCKERFILE) \
+	  -f $(PF_DOCKERFILE) \
 	  -t $(_IMAGE) .
 	mkdir -p $(ARTIFACTS_IMAGES)
 	$(call _save,$(_IMAGE),$(ARTIFACTS_IMAGES)/$(_TAR_NAME))
@@ -200,8 +234,7 @@ clean:
 	  for v in $(VERSIONS); do $(MAKE) clean V=$$v; done; \
 	  rm -rf $(ARTIFACTS_BUILD) $(ARTIFACTS_IMAGES) $(ARTIFACTS_SRC) $(ARTIFACTS_DEPS); \
 	fi
-	$(foreach d,$(_ALL_DEPS),@rm -f $(d)
-	)
+	$(if $(_ALL_DEP_FILES),@rm -f $(_ALL_DEP_FILES))
 
 # =============================================================================
 # Namespace shortcuts: make docker/<target> или make buildah/<target>

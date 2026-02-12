@@ -6,7 +6,7 @@ BASE_IMAGE := astra-linux:2.12
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/gawk-$(V).tar.xz
+SRC_FILE = $(ARTIFACTS_SRC)/gawk-$(PF_VERSION).tar.xz
 
 _TEST_CMD = sh -c '\
 	test -f /out/usr/bin/gawk && \

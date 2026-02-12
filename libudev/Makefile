@@ -3,13 +3,10 @@
 
 PROJECT     := libudev
 BASE_IMAGE  := astra-linux:2.12
-VERSION_VAR := SYSTEMD_VERSION
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/systemd-$(V).tar.gz
-
-_DEPS = libcap:LC:LIBCAP_VERSION
+SRC_FILE = $(ARTIFACTS_SRC)/systemd-$(PF_VERSION).tar.gz
 
 _TEST_CMD = sh -c '\
 	test -f /out/usr/include/libudev.h && \

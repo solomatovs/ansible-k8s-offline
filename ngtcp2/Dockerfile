@@ -7,22 +7,12 @@
 #   /out/usr/lib/pkgconfig/libngtcp2.pc    — pkg-config
 # Использование: COPY --from=ngtcp2:1.2.0-build /out /
 
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
 ARG NGTCP2_VERSION=1.2.0
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        pkg-config \
-        autoconf \
-        automake \
-        libtool \
- && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 

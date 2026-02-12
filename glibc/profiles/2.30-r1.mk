@@ -1,0 +1,3 @@
+PF_VERSION     = 2.30
+PF_DOCKERFILE  = Dockerfile
+KERNEL_VERSION := 4.15.18

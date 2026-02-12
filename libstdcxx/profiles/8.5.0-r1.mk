@@ -1,0 +1,2 @@
+PF_VERSION    = 8.5.0
+PF_DOCKERFILE = Dockerfile

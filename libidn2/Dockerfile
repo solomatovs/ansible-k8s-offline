@@ -8,19 +8,12 @@
 # Использование: COPY --from=libidn2:2.3.4-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
 ARG LIBIDN2_VERSION=2.3.4
 ARG LIBUNISTRING_VERSION=1.1
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        pkg-config \
- && rm -rf /var/lib/apt/lists/*
 
 # C-зависимость для сборки (make deps)
 COPY artifacts/deps/libunistring-${LIBUNISTRING_VERSION}.tar.gz /build/

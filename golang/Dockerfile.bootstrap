@@ -1,12 +1,17 @@
 # Сборка Go 1.4 из исходников (компиляция из C, без bootstrap Go).
+# Два режима:
+#   1) Bootstrap (TOOLCHAIN_IMAGE не задан): FROM BASE_IMAGE + apt build-essential
+#   2) Toolchain (TOOLCHAIN_IMAGE задан): FROM TOOLCHAIN_IMAGE (toolchain-gcc)
+#
 # 1.4 — первый в цепочке bootstrap: 1.4 → 1.17 → 1.20 → 1.22 → 1.24
 # Результат: /out/usr/local/go/{bin,pkg,src}
-# Использование: COPY --from=golang-astra:1.4-build /out /
+# Использование: COPY --from=golang:1.4-r1-build /out /
 
+ARG TOOLCHAIN_IMAGE=
 ARG BASE_IMAGE=astra-linux:2.12
-FROM --platform=linux/amd64 ${BASE_IMAGE} AS builder
 
-ARG GO_VERSION=1.4
+# --- Bootstrap stage: используется когда TOOLCHAIN_IMAGE не задан ---
+FROM --platform=linux/amd64 ${BASE_IMAGE} AS base-bootstrap
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -14,18 +19,23 @@ RUN apt-get update && apt-get install -y \
         build-essential \
  && rm -rf /var/lib/apt/lists/*
 
+# --- Выбор builder: toolchain если задан, иначе bootstrap ---
+FROM ${TOOLCHAIN_IMAGE:-base-bootstrap} AS builder
+
+ARG GOLANG_VERSION=1.4
+
 WORKDIR /build
 
-COPY artifacts/src/golang-${GO_VERSION}.tar.gz /build/
+COPY artifacts/src/golang-${GOLANG_VERSION}.tar.gz /build/
 RUN mkdir -p /build/go \
- && tar xzf /build/golang-${GO_VERSION}.tar.gz --strip-components=1 -C /build/go \
- && rm /build/golang-${GO_VERSION}.tar.gz
+ && tar xzf /build/golang-${GOLANG_VERSION}.tar.gz --strip-components=1 -C /build/go \
+ && rm /build/golang-${GOLANG_VERSION}.tar.gz
 
 WORKDIR /build/go/src
 
 # CGO_ENABLED=0 — go1.4 собирается чисто из C
 # CC="gcc -static" — статическая линковка C-тулчейна
-# Удаляем -Werror — GCC 6.x в Astra Linux выдаёт предупреждения, которые ломают сборку
+# Удаляем -Werror — старые версии GCC выдают предупреждения, которые ломают сборку
 RUN export CGO_ENABLED=0 \
  && export CC="gcc -static" \
  && sed -i '/"-Werror",/d' cmd/dist/build.c \

@@ -7,26 +7,21 @@
 #   /out/usr/lib/pkgconfig/liblzma.pc   — pkg-config
 # Использование: COPY --from=liblzma:5.2.2-build /out /
 
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
-ARG LZMA_VERSION=5.2.2
+ARG LIBLZMA_VERSION=5.2.2
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
- && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
-COPY artifacts/src/xz-${LZMA_VERSION}.tar.gz /build/
+COPY artifacts/src/xz-${LIBLZMA_VERSION}.tar.gz /build/
 
 RUN mkdir -p /build/xz \
- && tar xzf xz-${LZMA_VERSION}.tar.gz --strip-components=1 -C /build/xz \
- && rm xz-${LZMA_VERSION}.tar.gz
+ && tar xzf xz-${LIBLZMA_VERSION}.tar.gz --strip-components=1 -C /build/xz \
+ && rm xz-${LIBLZMA_VERSION}.tar.gz
 
 WORKDIR /build/xz
 

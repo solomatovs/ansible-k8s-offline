@@ -7,19 +7,12 @@
 #   /out/usr/lib/pkgconfig/ext2fs.pc
 # Используется как build-зависимость: libbtrfs (btrfs-progs).
 
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
 ARG E2FSPROGS_VERSION=1.47.0
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        pkg-config \
- && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 

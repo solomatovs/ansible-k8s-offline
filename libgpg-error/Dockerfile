@@ -7,26 +7,21 @@
 #   /out/usr/bin/gpg-error-config      — config-скрипт
 # Использование: COPY --from=libgpg-error:1.35-build /out /
 
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
-ARG GPG_ERROR_VERSION=1.35
+ARG LIBGPG_ERROR_VERSION=1.35
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
- && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
-COPY artifacts/src/libgpg-error-${GPG_ERROR_VERSION}.tar.bz2 /build/
+COPY artifacts/src/libgpg-error-${LIBGPG_ERROR_VERSION}.tar.bz2 /build/
 
 RUN mkdir -p /build/libgpg-error \
- && tar xjf libgpg-error-${GPG_ERROR_VERSION}.tar.bz2 --strip-components=1 -C /build/libgpg-error \
- && rm libgpg-error-${GPG_ERROR_VERSION}.tar.bz2
+ && tar xjf libgpg-error-${LIBGPG_ERROR_VERSION}.tar.bz2 --strip-components=1 -C /build/libgpg-error \
+ && rm libgpg-error-${LIBGPG_ERROR_VERSION}.tar.bz2
 
 WORKDIR /build/libgpg-error
 

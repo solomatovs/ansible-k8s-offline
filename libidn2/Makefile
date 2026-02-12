@@ -6,9 +6,7 @@ BASE_IMAGE := astra-linux:2.12
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/libidn2-$(V).tar.gz
-
-_DEPS = libunistring:US:LIBUNISTRING_VERSION
+SRC_FILE = $(ARTIFACTS_SRC)/libidn2-$(PF_VERSION).tar.gz
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \

@@ -3,14 +3,10 @@
 
 PROJECT     := libselinux
 BASE_IMAGE  := astra-linux:2.12
-VERSION_VAR := SELINUX_VERSION
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/libselinux-$(V).tar.gz
-
-# Зависимости: PCRE
-_DEPS = pcre:PC:PCRE_VERSION
+SRC_FILE = $(ARTIFACTS_SRC)/libselinux-$(PF_VERSION).tar.gz
 
 SP ?= $(SEPOL_VERSION)
 

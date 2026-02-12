@@ -3,18 +3,10 @@
 
 PROJECT     := libbtrfs
 BASE_IMAGE  := astra-linux:2.12
-VERSION_VAR := BTRFS_VERSION
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/btrfs-progs-$(V).tar.gz
-
-_DEPS = zlib:ZL:ZLIB_VERSION \
-        zstd:ZS:ZSTD_VERSION \
-        libmount:LM:LIBMOUNT_VERSION \
-        lzo:LO:LZO_VERSION \
-        e2fsprogs:EF:E2FSPROGS_VERSION \
-        libudev:UD:LIBUDEV_VERSION
+SRC_FILE = $(ARTIFACTS_SRC)/btrfs-progs-$(PF_VERSION).tar.gz
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \

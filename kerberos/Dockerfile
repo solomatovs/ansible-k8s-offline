@@ -14,20 +14,13 @@
 # Использование: COPY --from=kerberos:1.20.1-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${BASE_IMAGE} AS builder-shared
+FROM ${TOOLCHAIN_IMAGE} AS builder-shared
 
 ARG KERBEROS_VERSION=1.20.1
 ARG OPENSSL_VERSION=1.1.1w
 ARG BISON_VERSION=3.8.2
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        pkg-config \
- && rm -rf /var/lib/apt/lists/*
 
 # --- bison + m4 (build-зависимость) ---
 COPY artifacts/deps/bison-${BISON_VERSION}.tar.gz /build/
@@ -56,19 +49,11 @@ RUN tar xzf krb5-${KERBEROS_VERSION}.tar.gz \
  && { rm -rf /out/usr/share/man /out/usr/share/doc /out/usr/share/examples 2>/dev/null || true; }
 
 # Этап 2: static-библиотеки
-FROM ${BASE_IMAGE} AS builder-static
+FROM ${TOOLCHAIN_IMAGE} AS builder-static
 
 ARG KERBEROS_VERSION=1.20.1
 ARG OPENSSL_VERSION=1.1.1w
 ARG BISON_VERSION=3.8.2
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        pkg-config \
- && rm -rf /var/lib/apt/lists/*
 
 # --- bison + m4 (build-зависимость) ---
 COPY artifacts/deps/bison-${BISON_VERSION}.tar.gz /build/

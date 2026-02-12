@@ -1,102 +1,73 @@
 -include config.local.mk
 -include config.mk
 
-BUILDAH_REPO     := $(GITHUB_URL)/containers/buildah.git
-include ../mk/versions.mk
+PROJECT       := buildah
+BASE_IMAGE    := astra-linux:2.12
+include ../mk/profiles.mk
 BUILDAH_VERSIONS := $(VERSIONS)
-
-# Авторазрешение транзитивных версий зависимостей.
-# Порядок важен: libsystemd → libgcrypt (GCRYPT_VERSION приходит из libsystemd).
-_RESOLVE = libsystemd:SYSTEMD_VERSION \
-           libbtrfs:BTRFS_VERSION \
-           libgcrypt:GCRYPT_VERSION
-include ../mk/resolve.mk
-
-T ?= runtime
+T ?= build
 
 ARTIFACTS_SRC    := artifacts/src
 ARTIFACTS_DEPS   := artifacts/deps
 ARTIFACTS_BUILD  := artifacts/build
 ARTIFACTS_IMAGES := artifacts/images
 
-BUILDAH_ARCHIVE_URL = $(BUILDAH_REPO:.git=)/archive/refs/tags
+BUILDAH_REPO        := $(GITHUB_URL)/containers/buildah.git
+BUILDAH_ARCHIVE_URL  = $(BUILDAH_REPO:.git=)/archive/refs/tags
 
 include ../mk/backend.mk
 include ../mk/deps.mk
 
-# --- Astra Linux ---
-ASTRA_BASE_IMAGE := astra-linux:2.12
+# --- Хелперы для PF_ ---
+_dep_prj = $(word 1,$(subst :, ,$(1)))
+_dep_pid = $(word 2,$(subst :, ,$(1)))
+_dep_ver = $(shell echo '$(call _dep_pid,$(1))' | sed 's/-r[0-9]*$$//')
+_dep_uc  = $(shell echo '$(call _dep_prj,$(1))' | tr 'a-z-' 'A-Z_')
 
-# Короткие алиасы (значения из versions/<V>.mk)
-# Переопределение: make docker/image-astra 1.38.0 G=1.24.5
-G  ?= $(GO_VERSION)
-DM ?= $(DEVMAPPER_VERSION)
-BT ?= $(BTRFS_VERSION)
-SC ?= $(SECCOMP_VERSION)
-SD ?= $(SYSTEMD_VERSION)
-LC ?= $(LIBCAP_VERSION)
-LM ?= $(LIBMOUNT_VERSION)
-GE ?= $(GPG_ERROR_VERSION)
-GC ?= $(GCRYPT_VERSION)
+# --- Обработка PF_DEPS и PF_TOOLCHAIN: генерация dep files и build-args ---
+define _init_dep
+$(call _dep_uc,$(1))_VERSION := $(call _dep_ver,$(1))
+_ALL_DEP_FILES += $$(ARTIFACTS_DEPS)/$(call _dep_prj,$(1))-$(call _dep_ver,$(1)).tar.gz
+_DEP_BUILD_ARGS += --build-arg $(call _dep_uc,$(1))_VERSION=$(call _dep_ver,$(1))
+endef
 
-# Имена файлов бинарных зависимостей (условные — пустые если версия не задана)
-_GO_DEP         = $(if $(G),$(ARTIFACTS_DEPS)/golang-$(G).tar.gz)
-_DEVMAPPER_DEP  = $(if $(DM),$(ARTIFACTS_DEPS)/libdevmapper-$(DM).tar.gz)
-_BTRFS_DEP      = $(if $(BT),$(ARTIFACTS_DEPS)/libbtrfs-$(BT).tar.gz)
-_SECCOMP_DEP    = $(if $(SC),$(ARTIFACTS_DEPS)/libseccomp-$(SC).tar.gz)
-_SYSTEMD_DEP    = $(if $(SD),$(ARTIFACTS_DEPS)/libsystemd-$(SD).tar.gz)
-_LIBCAP_DEP     = $(if $(LC),$(ARTIFACTS_DEPS)/libcap-$(LC).tar.gz)
-_LIBMOUNT_DEP   = $(if $(LM),$(ARTIFACTS_DEPS)/libmount-$(LM).tar.gz)
-_GPG_ERROR_DEP  = $(if $(GE),$(ARTIFACTS_DEPS)/libgpg-error-$(GE).tar.gz)
-_GCRYPT_DEP     = $(if $(GC),$(ARTIFACTS_DEPS)/libgcrypt-$(GC).tar.gz)
+define _gen_dep_rule
+$$(ARTIFACTS_DEPS)/$(call _dep_prj,$(1))-$(call _dep_ver,$(1)).tar.gz:
+	@$$(_INSPECT) $(call _dep_prj,$(1)):$(call _dep_pid,$(1))-build > /dev/null 2>&1 || \
+	  (echo "Error: image $(call _dep_prj,$(1)):$(call _dep_pid,$(1))-build not found"; exit 1)
+	mkdir -p $$(ARTIFACTS_DEPS)
+	@$$(call _extract,$(call _dep_prj,$(1)):$(call _dep_pid,$(1))-build,$$@)
+endef
 
-# Список активных deps (пустые автоматически исключаются)
-_ALL_DEPS = $(strip $(_GO_DEP) $(_DEVMAPPER_DEP) $(_BTRFS_DEP) $(_SECCOMP_DEP) \
-  $(_SYSTEMD_DEP) $(_LIBCAP_DEP) $(_LIBMOUNT_DEP) $(_GPG_ERROR_DEP) $(_GCRYPT_DEP))
+# PF_TOOLCHAIN (golang) обрабатывается как dep — извлекается tar.gz
+ifdef PF_TOOLCHAIN
+$(eval $(call _init_dep,$(PF_TOOLCHAIN)))
+$(eval $(call _gen_dep_rule,$(PF_TOOLCHAIN)))
+endif
 
-# Правила извлечения зависимостей из Docker-образов
-$(eval $(call dep_rule,golang,golang))
-$(eval $(call dep_rule,libdevmapper,libdevmapper))
-$(eval $(call dep_rule,libbtrfs,libbtrfs))
-$(eval $(call dep_rule,libseccomp,libseccomp))
-$(eval $(call dep_rule,libsystemd,libsystemd))
-$(eval $(call dep_rule,libcap,libcap))
-$(eval $(call dep_rule,libmount,libmount))
-$(eval $(call dep_rule,libgpg-error,libgpg-error))
-$(eval $(call dep_rule,libgcrypt,libgcrypt))
+ifdef PF_DEPS
+$(foreach dep,$(PF_DEPS),$(eval $(call _init_dep,$(dep))))
+$(foreach dep,$(PF_DEPS),$(eval $(call _gen_dep_rule,$(dep))))
+endif
+_ALL_DEP_FILES := $(strip $(_ALL_DEP_FILES))
 
-astra_build_name   = buildah:$(1)-build
-astra_runtime_name = buildah-astra:$(1)-runtime
+# --- Имена образов ---
+image_name   = $(PROJECT):$(1)-build
+runtime_name = $(PROJECT)-astra:$(1)-runtime
 
-astra_build_args = \
-	--build-arg BASE_IMAGE=$(ASTRA_BASE_IMAGE) \
-	--build-arg BUILDAH_VERSION=$(1) \
-	$(if $(G),--build-arg GO_VERSION=$(G)) \
-	$(if $(DM),--build-arg DEVMAPPER_VERSION=$(DM)) \
-	$(if $(BT),--build-arg BTRFS_VERSION=$(BT)) \
-	$(if $(SC),--build-arg SECCOMP_VERSION=$(SC)) \
-	$(if $(SD),--build-arg SYSTEMD_VERSION=$(SD)) \
-	$(if $(LC),--build-arg LIBCAP_VERSION=$(LC)) \
-	$(if $(LM),--build-arg LIBMOUNT_VERSION=$(LM)) \
-	$(if $(GE),--build-arg GPG_ERROR_VERSION=$(GE)) \
-	$(if $(GC),--build-arg GCRYPT_VERSION=$(GC))
+# --- Вычисляемые переменные ---
+_IMAGE      = $(if $(filter runtime,$(T)),$(call runtime_name,$(V)),$(call image_name,$(V)))
+_DOCKERFILE = $(if $(filter runtime,$(T)),Dockerfile.astra-runtime,$(PF_DOCKERFILE))
 
-astra_runtime_build_args = \
-	--build-arg BASE_IMAGE=$(ASTRA_BASE_IMAGE) \
-	--build-arg BUILDAH_IMAGE=$(call astra_build_name,$(1))
+_BUILD_ARGS = $(if $(filter runtime,$(T)),\
+  --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg BUILDAH_IMAGE=$(call image_name,$(V)),\
+  --build-arg BASE_IMAGE=$(BASE_IMAGE) --build-arg BUILDAH_VERSION=$(PF_VERSION) $(_DEP_BUILD_ARGS))
 
-astra_labels = \
-	--label org.opencontainers.image.title=$(1) \
-	--label org.opencontainers.image.version=$(2)-$(3) \
-	--label org.opencontainers.image.base.name=$(ASTRA_BASE_IMAGE)
-
-# --- Вычисляемые переменные для текущих V и T ---
-_ASTRA_IMAGE      = $(if $(filter build,$(T)),$(call astra_build_name,$(V)),$(call astra_runtime_name,$(V)))
-_ASTRA_DOCKERFILE = $(if $(filter build,$(T)),$(or $(DOCKERFILE_BUILD),Dockerfile.astra),$(or $(DOCKERFILE_RUNTIME),Dockerfile.astra-runtime))
-_ASTRA_BUILD_ARGS = $(if $(filter build,$(T)),$(call astra_build_args,$(V)),$(call astra_runtime_build_args,$(V)))
-_ASTRA_LABELS     = $(call astra_labels,$(if $(filter runtime,$(T)),buildah-astra,buildah),$(V),$(T))
-_ASTRA_TAR_NAME   = $(if $(filter runtime,$(T)),buildah-astra,buildah)-$(V)-$(T).tar
-_ASTRA_TEST_CMD   = $(if $(filter build,$(T)),/out/usr/bin/buildah version && (ldd /out/usr/bin/buildah 2>&1 || echo "static: ok"),buildah version)
+_LABELS     = --label org.opencontainers.image.title=$(PROJECT) \
+    --label org.opencontainers.image.version=$(V)-$(T) \
+    --label org.opencontainers.image.base.name=$(BASE_IMAGE)
+_TAR_NAME   = $(if $(filter runtime,$(T)),$(PROJECT)-astra-$(V)-runtime,$(PROJECT)-$(V)-build).tar
+_TEST_CMD   = $(if $(filter runtime,$(T)),buildah version,sh -c '/out/usr/bin/buildah version && (ldd /out/usr/bin/buildah 2>&1 || echo "static: ok")')
 
 # --- Debian ---
 DEBIAN_BASE_IMAGE    := debian:bookworm-slim
@@ -108,142 +79,129 @@ DEBIAN_LABELS := \
 	--label org.opencontainers.image.version=$(DEBIAN_CODENAME)-runtime \
 	--label org.opencontainers.image.base.name=$(DEBIAN_BASE_IMAGE)
 
-# --- Валидация (внешние зависимости — ошибка если нет) ---
-check_version  = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию (например, make docker/image-astra 1.38.0)"; echo "Поддерживаемые версии: $(BUILDAH_VERSIONS)"; exit 1; fi
-check_go       = @if [ -z "$(G)" ]; then echo "Ошибка: Go-компилятор не задан для версии $(V)"; echo "Добавьте GO_$(V) := X.Y.Z в Makefile или задайте G=X.Y.Z"; exit 1; fi
-check_src_file = @test -f $(ARTIFACTS_SRC)/buildah-$(V).tar.gz || (echo "Ошибка: $(ARTIFACTS_SRC)/buildah-$(V).tar.gz не найден"; echo "Выполните: make download $(V)"; exit 1)
-
-# --- Ensure (внутренние зависимости — автосборка если нет) ---
-ensure_astra         = @$(call _ensure_check,$(call astra_build_name,$(1))) $(MAKE) image-astra V=$(1) T=build
-ensure_astra_runtime = @$(call _ensure_check,$(call astra_runtime_name,$(1))) $(MAKE) image-astra V=$(1) T=runtime
-ensure_debian        = @$(call _ensure_check,$(DEBIAN_RUNTIME_IMAGE)) $(MAKE) image-debian
+# --- Валидация ---
+check_version  = @if [ -z "$(V)" ]; then echo "Ошибка: укажите версию"; echo "Поддерживаемые версии: $(BUILDAH_VERSIONS)"; exit 1; fi; \
+    if [ -z "$(PF_VERSION)" ]; then echo "Ошибка: PF_VERSION не определён в profiles/$(V).mk"; exit 1; fi
+check_src_file = @test -f $(ARTIFACTS_SRC)/buildah-$(PF_VERSION).tar.gz || (echo "Ошибка: $(ARTIFACTS_SRC)/buildah-$(PF_VERSION).tar.gz не найден"; echo "Выполните: make download $(V)"; exit 1)
+ensure         = @$(call _ensure_check,$(call image_name,$(1))) $(MAKE) image V=$(1) T=build
+ensure_runtime = @$(call _ensure_check,$(call runtime_name,$(1))) $(MAKE) image V=$(1) T=runtime
+ensure_debian  = @$(call _ensure_check,$(DEBIAN_RUNTIME_IMAGE)) $(MAKE) image-debian
 
 .DEFAULT_GOAL := help
 
-.PHONY: help show-versions download deps \
-        image-astra build-astra test-astra shell-astra clean-astra \
+.PHONY: help download deps image image-astra \
+        build test shell clean \
         image-debian test-debian shell-debian clean-debian \
-        clean
-
-show-versions:
-	$(call check_version)
-	@echo "buildah $(V) — Resolved versions:"
-	@echo "  Primary (from versions/$(V).mk):"
-	@echo "    GO=$(G)  DEVMAPPER=$(DM)  BTRFS=$(BT)  SYSTEMD=$(SD)"
-	@echo "  Resolved (from dep version files):"
-	@echo "    SECCOMP=$(SC)  LIBCAP=$(LC)  LIBMOUNT=$(LM)"
-	@echo "    GPG_ERROR=$(GE)  GCRYPT=$(GC)"
+        $(BUILDAH_VERSIONS)
 
 help:
 	@echo "Usage: make docker/<target>    (на хосте, через Docker)"
 	@echo "       make buildah/<target>   (внутри devcontainer, через Buildah)"
 	@echo ""
 	@echo "Astra Linux (сборка из исходников):"
-	@echo "  download     X.Y.Z                   Скачать исходники buildah (требует интернет)"
-	@echo "  deps         X.Y.Z [G=comp]          Извлечь бинарные зависимости из Docker-образов в artifacts/deps/"
-	@echo "  image-astra  X.Y.Z [T=type] [G=comp] Собрать образ и экспортировать в artifacts/images/"
-	@echo "  build-astra  X.Y.Z [G=comp]          Архивировать артефакты в artifacts/build/"
-	@echo "  test-astra   X.Y.Z [T=type]          Проверить buildah version"
-	@echo "  shell-astra  X.Y.Z [T=type]          Shell в образе"
-	@echo "  clean-astra  X.Y.Z                   Удалить образы и артефакты версии"
+	@echo "  download  <version>          Скачать исходники buildah (требует интернет)"
+	@echo "  deps      <version>          Извлечь бинарные зависимости из Docker-образов в artifacts/deps/"
+	@echo "  image     <version> [T=type] Собрать образ и экспортировать в artifacts/images/"
+	@echo "  build     <version>          Архивировать артефакты в artifacts/build/"
+	@echo "  test      <version> [T=type] Проверить buildah version"
+	@echo "  shell     <version> [T=type] Shell в образе"
+	@echo "  clean     <version>          Удалить образы и артефакты версии"
 	@echo ""
 	@echo "  Поддерживаемые версии: $(BUILDAH_VERSIONS)"
-	@echo "  Типы образов (T): runtime (по умолчанию), build"
-	@echo "  Go-компилятор (G): задаётся в versions/<V>.mk"
+	@echo "  Типы образов (T): build (по умолчанию), runtime"
+ifdef PF_TOOLCHAIN
 	@echo ""
-	@echo "  Зависимости (deps):"
-	@echo "    golang:<G>-build           → artifacts/deps/"
-	@echo "    libdevmapper:<DM>-build    → artifacts/deps/"
-	@echo "    libbtrfs:<BT>-build        → artifacts/deps/"
-	@echo "    libseccomp:<SC>-build      → artifacts/deps/"
-	@echo "    libsystemd:<SD>-build      → artifacts/deps/"
-	@echo "    libcap:<LC>-build          → artifacts/deps/"
-	@echo "    libmount:<LM>-build        → artifacts/deps/"
-	@echo "    libgpg-error:<GE>-build    → artifacts/deps/"
-	@echo "    libgcrypt:<GC>-build       → artifacts/deps/"
+	@echo "  Toolchain: $(PF_TOOLCHAIN)"
+endif
+ifdef PF_DEPS
+	@echo ""
+	@echo "  Зависимости (PF_DEPS):"
+	@$(foreach dep,$(PF_DEPS),printf '    %s\n' '$(dep)';)
+endif
 	@echo ""
 	@echo "  Примеры:"
-	@echo "    make docker/download 1.38.0"
-	@echo "    make docker/deps     1.38.0"
-	@echo "    make docker/image-astra 1.38.0 T=build"
-	@echo "    make docker/image-astra 1.38.0"
-	@echo "    make docker/image-astra 1.38.0 G=1.24.5"
+	@echo "    make docker/download 1.38.0-r1"
+	@echo "    make docker/deps     1.38.0-r1"
+	@echo "    make docker/image    1.38.0-r1 T=build"
+	@echo "    make docker/image    1.38.0-r1 T=runtime"
 	@echo ""
 	@echo "Debian (установка из пакетов):"
-	@echo "  image-debian                          Собрать образ и экспортировать в artifacts/images/"
-	@echo "  test-debian                           Проверить buildah version"
-	@echo "  shell-debian                          Shell в runtime-образе"
-	@echo "  clean-debian                          Удалить образы и артефакты"
-	@echo ""
-	@echo "  Примеры:"
-	@echo "    make docker/image-debian"
-	@echo "    make docker/test-debian"
+	@echo "  image-debian                 Собрать образ и экспортировать в artifacts/images/"
+	@echo "  test-debian                  Проверить buildah version"
+	@echo "  shell-debian                 Shell в runtime-образе"
+	@echo "  clean-debian                 Удалить образы и артефакты"
 	@echo ""
 	@echo "Общее:"
-	@echo "  clean                                 Удалить все образы и артефакты"
+	@echo "  clean                        Удалить все образы и артефакты"
 
 # --- Скачивание исходников ---
 download:
 	$(call check_version)
-	@$(MAKE) $(ARTIFACTS_SRC)/buildah-$(V).tar.gz
+	@$(MAKE) $(ARTIFACTS_SRC)/buildah-$(PF_VERSION).tar.gz
 
 $(ARTIFACTS_SRC)/buildah-%.tar.gz:
 	mkdir -p $(ARTIFACTS_SRC)
 	curl -fSL -o $@ $(BUILDAH_ARCHIVE_URL)/v$*.tar.gz
 
-# --- Извлечение бинарных зависимостей из Docker-образов ---
+# --- Извлечение бинарных зависимостей ---
 deps:
 	$(call check_version)
-	$(if $(G),$(call check_go))
-	@$(MAKE) $(_ALL_DEPS)
+	$(if $(_ALL_DEP_FILES),@$(MAKE) $(_ALL_DEP_FILES))
 
 # =============================================================================
 # Targets (backend выбирается через BACKEND)
 # =============================================================================
 
-# --- Astra ---
+# --- Backwards-compat alias ---
 image-astra:
+	@$(MAKE) image V=$(V) T=$(T)
+
+image:
 	$(call check_version)
-	$(if $(and $(filter build,$(T)),$(G)),$(call check_go))
 	$(if $(filter build,$(T)),$(call check_src_file))
-	@$(foreach d,$(_ALL_DEPS),$(if $(filter build,$(T)),$(call check_dep,$(d))))
-	$(if $(filter runtime,$(T)),$(call ensure_astra,$(V)))
+	$(if $(_ALL_DEP_FILES),@$(foreach d,$(_ALL_DEP_FILES),$(if $(filter build,$(T)),$(call check_dep,$(d)))))
+	$(if $(filter runtime,$(T)),$(call ensure,$(V)))
 	$(_BUILD) \
-	  $(_ASTRA_BUILD_ARGS) \
-	  $(_ASTRA_LABELS) \
-	  -f $(_ASTRA_DOCKERFILE) \
-	  -t $(_ASTRA_IMAGE) .
+	  $(_BUILD_ARGS) \
+	  $(_LABELS) \
+	  -f $(_DOCKERFILE) \
+	  -t $(_IMAGE) .
 	mkdir -p $(ARTIFACTS_IMAGES)
-	$(call _save,$(_ASTRA_IMAGE),$(ARTIFACTS_IMAGES)/$(_ASTRA_TAR_NAME))
+	$(call _save,$(_IMAGE),$(ARTIFACTS_IMAGES)/$(_TAR_NAME))
 
-build-astra:
+build:
 	$(call check_version)
-	$(call ensure_astra,$(V))
+	$(call ensure,$(V))
 	mkdir -p $(ARTIFACTS_BUILD)
-	@$(call _extract,$(call astra_build_name,$(V)),$(ARTIFACTS_BUILD)/buildah-$(V).tar.gz)
+	@$(call _extract,$(call image_name,$(V)),$(ARTIFACTS_BUILD)/buildah-$(PF_VERSION).tar.gz)
 
-test-astra:
+test:
 	$(call check_version)
-	$(if $(filter runtime,$(T)),$(call ensure_astra_runtime,$(V)),$(call ensure_astra,$(V)))
-	@echo "=== $(_ASTRA_IMAGE) ==="
-	@$(call _run,$(_ASTRA_IMAGE),sh -c '$(_ASTRA_TEST_CMD)')
+	$(if $(filter runtime,$(T)),$(call ensure_runtime,$(V)),$(call ensure,$(V)))
+	@echo "=== $(_IMAGE) ==="
+	@$(call _run,$(_IMAGE),$(_TEST_CMD))
 
-shell-astra:
+shell:
 	$(call check_version)
-	$(if $(filter runtime,$(T)),$(call ensure_astra_runtime,$(V)),$(call ensure_astra,$(V)))
-	@$(call _shell,$(_ASTRA_IMAGE))
+	$(if $(filter runtime,$(T)),$(call ensure_runtime,$(V)),$(call ensure,$(V)))
+	@$(call _shell,$(_IMAGE))
 
-clean-astra:
-	$(call check_version)
-	@docker rmi $(call astra_runtime_name,$(V)) 2>/dev/null || true
-	@docker rmi $(call astra_build_name,$(V)) 2>/dev/null || true
-	@buildah rmi $(call astra_runtime_name,$(V)) 2>/dev/null || true
-	@buildah rmi $(call astra_build_name,$(V)) 2>/dev/null || true
-	@rm -f $(ARTIFACTS_IMAGES)/buildah-$(V)-build.tar
-	@rm -f $(ARTIFACTS_IMAGES)/buildah-astra-$(V)-runtime.tar
-	@rm -f $(ARTIFACTS_BUILD)/buildah-$(V).tar.gz
-	@rm -f $(ARTIFACTS_SRC)/buildah-$(V).tar.gz
-	$(foreach d,$(_ALL_DEPS),@rm -f $(d)
+clean:
+	@if [ -n "$(V)" ]; then \
+	  docker rmi $(call runtime_name,$(V)) 2>/dev/null || true; \
+	  docker rmi $(call image_name,$(V)) 2>/dev/null || true; \
+	  buildah rmi $(call runtime_name,$(V)) 2>/dev/null || true; \
+	  buildah rmi $(call image_name,$(V)) 2>/dev/null || true; \
+	  rm -f $(ARTIFACTS_IMAGES)/buildah-$(V)-build.tar; \
+	  rm -f $(ARTIFACTS_IMAGES)/buildah-astra-$(V)-runtime.tar; \
+	  rm -f $(ARTIFACTS_BUILD)/buildah-$(PF_VERSION).tar.gz; \
+	  rm -f $(ARTIFACTS_SRC)/buildah-$(PF_VERSION).tar.gz; \
+	else \
+	  for v in $(BUILDAH_VERSIONS); do $(MAKE) clean V=$$v; done; \
+	  $(MAKE) clean-debian; \
+	  rm -rf $(ARTIFACTS_BUILD) $(ARTIFACTS_IMAGES) $(ARTIFACTS_SRC) $(ARTIFACTS_DEPS); \
+	fi
+	$(foreach d,$(_ALL_DEP_FILES),@rm -f $(d)
 	)
 
 # --- Debian ---
@@ -270,21 +228,15 @@ clean-debian:
 	@buildah rmi $(DEBIAN_RUNTIME_IMAGE) 2>/dev/null || true
 	@rm -f $(ARTIFACTS_IMAGES)/buildah-debian-$(DEBIAN_CODENAME)-runtime.tar
 
-# --- Общее ---
-clean:
-	@for v in $(BUILDAH_VERSIONS); do $(MAKE) clean-astra V=$$v; done
-	@$(MAKE) clean-debian
-	@rm -rf $(ARTIFACTS_BUILD) $(ARTIFACTS_IMAGES) $(ARTIFACTS_SRC) $(ARTIFACTS_DEPS)
-
 # =============================================================================
 # Namespace shortcuts: make docker/<target> или make buildah/<target>
 # =============================================================================
 docker/%:
-	@$(MAKE) $* BACKEND=docker $(if $(V),V=$(V)) T=$(T) $(if $(G),G=$(G))
+	@$(MAKE) $* BACKEND=docker $(if $(V),V=$(V)) T=$(T)
 
 buildah/%:
-	@$(MAKE) $* BACKEND=buildah $(if $(V),V=$(V)) T=$(T) $(if $(G),G=$(G))
+	@$(MAKE) $* BACKEND=buildah $(if $(V),V=$(V)) T=$(T)
 
-# Catch-all: версия как цель (например, make docker/test-astra 1.38.0)
+# Catch-all: версия как цель (например, make docker/image 1.38.0-r1)
 $(BUILDAH_VERSIONS):
 	@:

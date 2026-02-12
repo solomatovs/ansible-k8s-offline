@@ -6,7 +6,7 @@ BASE_IMAGE := astra-linux:2.12
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/pcre-$(V).tar.bz2
+SRC_FILE = $(ARTIFACTS_SRC)/pcre-$(PF_VERSION).tar.bz2
 
 _TEST_CMD = sh -c '\
 	test -f /out/usr/include/pcre.h && \
@@ -16,6 +16,6 @@ _TEST_CMD = sh -c '\
 # --- Скачивание исходников ---
 $(ARTIFACTS_SRC)/pcre-%.tar.bz2:
 	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(SOURCEFORGE_URL)/pcre/pcre/$*/pcre-$*.tar.bz2
+	curl -fSL -L -o $@ $(PCRE_URL)/$*/pcre-$*.tar.bz2/download
 
 include ../mk/project.mk

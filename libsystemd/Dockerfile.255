@@ -17,15 +17,15 @@ ARG BASE_IMAGE=astra-linux:2.12
 
 FROM ${BASE_IMAGE} AS builder
 
-ARG SYSTEMD_VERSION=255
+ARG LIBSYSTEMD_VERSION=255
 ARG LIBCAP_VERSION=2.25
 ARG LIBMOUNT_VERSION=2.30.2
-ARG GPG_ERROR_VERSION=1.35
-ARG GCRYPT_VERSION=1.7.6
-ARG SECCOMP_VERSION=2.5.5
-ARG LZMA_VERSION=5.2.2
-ARG LZ4_VERSION=1.9.3
-ARG SELINUX_VERSION=2.6
+ARG LIBGPG_ERROR_VERSION=1.35
+ARG LIBGCRYPT_VERSION=1.7.6
+ARG LIBSECCOMP_VERSION=2.5.5
+ARG LIBLZMA_VERSION=5.2.2
+ARG LIBLZ4_VERSION=1.9.3
+ARG LIBSELINUX_VERSION=2.6
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -70,37 +70,37 @@ COPY artifacts/deps/libmount-${LIBMOUNT_VERSION}.tar.gz /build/
 RUN tar xzf /build/libmount-${LIBMOUNT_VERSION}.tar.gz -C / \
  && rm /build/libmount-${LIBMOUNT_VERSION}.tar.gz
 
-COPY artifacts/deps/libgpg-error-${GPG_ERROR_VERSION}.tar.gz /build/
-RUN tar xzf /build/libgpg-error-${GPG_ERROR_VERSION}.tar.gz -C / \
- && rm /build/libgpg-error-${GPG_ERROR_VERSION}.tar.gz
+COPY artifacts/deps/libgpg-error-${LIBGPG_ERROR_VERSION}.tar.gz /build/
+RUN tar xzf /build/libgpg-error-${LIBGPG_ERROR_VERSION}.tar.gz -C / \
+ && rm /build/libgpg-error-${LIBGPG_ERROR_VERSION}.tar.gz
 
-COPY artifacts/deps/libgcrypt-${GCRYPT_VERSION}.tar.gz /build/
-RUN tar xzf /build/libgcrypt-${GCRYPT_VERSION}.tar.gz -C / \
- && rm /build/libgcrypt-${GCRYPT_VERSION}.tar.gz
+COPY artifacts/deps/libgcrypt-${LIBGCRYPT_VERSION}.tar.gz /build/
+RUN tar xzf /build/libgcrypt-${LIBGCRYPT_VERSION}.tar.gz -C / \
+ && rm /build/libgcrypt-${LIBGCRYPT_VERSION}.tar.gz
 
-COPY artifacts/deps/libseccomp-${SECCOMP_VERSION}.tar.gz /build/
-RUN tar xzf /build/libseccomp-${SECCOMP_VERSION}.tar.gz -C / \
- && rm /build/libseccomp-${SECCOMP_VERSION}.tar.gz
+COPY artifacts/deps/libseccomp-${LIBSECCOMP_VERSION}.tar.gz /build/
+RUN tar xzf /build/libseccomp-${LIBSECCOMP_VERSION}.tar.gz -C / \
+ && rm /build/libseccomp-${LIBSECCOMP_VERSION}.tar.gz
 
-COPY artifacts/deps/liblzma-${LZMA_VERSION}.tar.gz /build/
-RUN tar xzf /build/liblzma-${LZMA_VERSION}.tar.gz -C / \
- && rm /build/liblzma-${LZMA_VERSION}.tar.gz
+COPY artifacts/deps/liblzma-${LIBLZMA_VERSION}.tar.gz /build/
+RUN tar xzf /build/liblzma-${LIBLZMA_VERSION}.tar.gz -C / \
+ && rm /build/liblzma-${LIBLZMA_VERSION}.tar.gz
 
-COPY artifacts/deps/liblz4-${LZ4_VERSION}.tar.gz /build/
-RUN tar xzf /build/liblz4-${LZ4_VERSION}.tar.gz -C / \
- && rm /build/liblz4-${LZ4_VERSION}.tar.gz
+COPY artifacts/deps/liblz4-${LIBLZ4_VERSION}.tar.gz /build/
+RUN tar xzf /build/liblz4-${LIBLZ4_VERSION}.tar.gz -C / \
+ && rm /build/liblz4-${LIBLZ4_VERSION}.tar.gz
 
-COPY artifacts/deps/libselinux-${SELINUX_VERSION}.tar.gz /build/
-RUN tar xzf /build/libselinux-${SELINUX_VERSION}.tar.gz -C / \
- && rm /build/libselinux-${SELINUX_VERSION}.tar.gz
+COPY artifacts/deps/libselinux-${LIBSELINUX_VERSION}.tar.gz /build/
+RUN tar xzf /build/libselinux-${LIBSELINUX_VERSION}.tar.gz -C / \
+ && rm /build/libselinux-${LIBSELINUX_VERSION}.tar.gz
 
 WORKDIR /build
 
-COPY artifacts/src/systemd-${SYSTEMD_VERSION}.tar.gz /build/
+COPY artifacts/src/systemd-${LIBSYSTEMD_VERSION}.tar.gz /build/
 
 RUN mkdir -p /build/systemd \
- && tar xzf systemd-${SYSTEMD_VERSION}.tar.gz --strip-components=1 -C /build/systemd \
- && rm systemd-${SYSTEMD_VERSION}.tar.gz
+ && tar xzf systemd-${LIBSYSTEMD_VERSION}.tar.gz --strip-components=1 -C /build/systemd \
+ && rm systemd-${LIBSYSTEMD_VERSION}.tar.gz
 
 WORKDIR /build/systemd
 
@@ -133,7 +133,7 @@ RUN meson setup build \
    || true ) \
  && PC=$(find build -type f -name 'libsystemd.pc' | head -1) \
  && if [ -n "$PC" ]; then cp "$PC" /out/usr/lib/pkgconfig/; \
-    else printf 'prefix=/usr\nexec_prefix=${prefix}\nlibdir=${prefix}/lib\nincludedir=${prefix}/include\n\nName: libsystemd\nDescription: systemd Library\nURL: https://www.freedesktop.org/wiki/Software/systemd\nVersion: %s\nLibs: -L${libdir} -lsystemd\nCflags: -I${includedir}\n' "${SYSTEMD_VERSION}" > /out/usr/lib/pkgconfig/libsystemd.pc; fi \
+    else printf 'prefix=/usr\nexec_prefix=${prefix}\nlibdir=${prefix}/lib\nincludedir=${prefix}/include\n\nName: libsystemd\nDescription: systemd Library\nURL: https://www.freedesktop.org/wiki/Software/systemd\nVersion: %s\nLibs: -L${libdir} -lsystemd\nCflags: -I${includedir}\n' "${LIBSYSTEMD_VERSION}" > /out/usr/lib/pkgconfig/libsystemd.pc; fi \
  && cp src/systemd/*.h /out/usr/include/systemd/ \
  && { cp build/src/systemd/*.h /out/usr/include/systemd/ 2>/dev/null || true; }
 

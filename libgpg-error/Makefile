@@ -3,11 +3,10 @@
 
 PROJECT     := libgpg-error
 BASE_IMAGE  := astra-linux:2.12
-VERSION_VAR := GPG_ERROR_VERSION
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/libgpg-error-$(V).tar.bz2
+SRC_FILE = $(ARTIFACTS_SRC)/libgpg-error-$(PF_VERSION).tar.bz2
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \

@@ -8,31 +8,25 @@
 # Использование: COPY --from=libgcrypt:1.7.6-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
-ARG GCRYPT_VERSION=1.7.6
-ARG GPG_ERROR_VERSION=1.35
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
- && rm -rf /var/lib/apt/lists/*
+ARG LIBGCRYPT_VERSION=1.7.6
+ARG LIBGPG_ERROR_VERSION=1.35
 
 # C-зависимость для сборки (make deps)
-COPY artifacts/deps/libgpg-error-${GPG_ERROR_VERSION}.tar.gz /build/
-RUN tar xzf /build/libgpg-error-${GPG_ERROR_VERSION}.tar.gz -C / \
- && rm /build/libgpg-error-${GPG_ERROR_VERSION}.tar.gz
+COPY artifacts/deps/libgpg-error-${LIBGPG_ERROR_VERSION}.tar.gz /build/
+RUN tar xzf /build/libgpg-error-${LIBGPG_ERROR_VERSION}.tar.gz -C / \
+ && rm /build/libgpg-error-${LIBGPG_ERROR_VERSION}.tar.gz
 
 WORKDIR /build
 
-COPY artifacts/src/libgcrypt-${GCRYPT_VERSION}.tar.bz2 /build/
+COPY artifacts/src/libgcrypt-${LIBGCRYPT_VERSION}.tar.bz2 /build/
 
 RUN mkdir -p /build/libgcrypt \
- && tar xjf libgcrypt-${GCRYPT_VERSION}.tar.bz2 --strip-components=1 -C /build/libgcrypt \
- && rm libgcrypt-${GCRYPT_VERSION}.tar.bz2
+ && tar xjf libgcrypt-${LIBGCRYPT_VERSION}.tar.bz2 --strip-components=1 -C /build/libgcrypt \
+ && rm libgcrypt-${LIBGCRYPT_VERSION}.tar.bz2
 
 WORKDIR /build/libgcrypt
 

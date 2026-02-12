@@ -6,20 +6,7 @@ BASE_IMAGE := astra-linux:2.12
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/curl-$(V).tar.gz
-
-_DEPS = zlib:ZL:ZLIB_VERSION \
-        openssl:OL:OPENSSL_VERSION \
-        kerberos:KR:KERBEROS_VERSION \
-        nghttp2:NH:NGHTTP2_VERSION \
-        openldap:OD:OPENLDAP_VERSION \
-        libssh2:S2:LIBSSH2_VERSION \
-        libunistring:US:LIBUNISTRING_VERSION \
-        libidn2:ID:LIBIDN2_VERSION \
-        zstd:ZS:ZSTD_VERSION \
-        brotli:BR:BROTLI_VERSION \
-        nghttp3:H3:NGHTTP3_VERSION \
-        ngtcp2:TC:NGTCP2_VERSION
+SRC_FILE = $(ARTIFACTS_SRC)/curl-$(PF_VERSION).tar.gz
 
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \

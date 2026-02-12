@@ -1,22 +1,18 @@
 # Сборка buildah из исходников со статической компиляцией (CGO + static linking).
 # Go компилятор и C-библиотеки подаются как файловые зависимости из artifacts/deps/ (make deps).
 # Результат: /out/usr/bin/buildah (статический бинарник)
-# Использование: COPY --from=buildah-astra:1.38.0-build /out /
+# Использование: COPY --from=buildah:1.38.0-r1-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
 
 FROM ${BASE_IMAGE} AS builder
 
 ARG BUILDAH_VERSION=1.38.0
-ARG GO_VERSION=1.22.6
-ARG DEVMAPPER_VERSION=2.03.25
-ARG BTRFS_VERSION=6.6.3
-ARG SECCOMP_VERSION=2.5.5
-ARG SYSTEMD_VERSION=241
-ARG LIBCAP_VERSION=2.25
-ARG LIBMOUNT_VERSION=2.30.2
-ARG GPG_ERROR_VERSION=1.35
-ARG GCRYPT_VERSION=1.7.6
+ARG GOLANG_VERSION=1.22.6
+ARG LIBDEVMAPPER_VERSION=2.03.25
+ARG LIBBTRFS_VERSION=6.6.3
+ARG LIBSECCOMP_VERSION=2.5.5
+ARG LIBSYSTEMD_VERSION=241
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -29,46 +25,33 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Go компилятор из отдельного проекта (make deps)
-COPY artifacts/deps/golang-${GO_VERSION}.tar.gz /build/
-RUN tar xzf /build/golang-${GO_VERSION}.tar.gz -C / \
- && rm /build/golang-${GO_VERSION}.tar.gz
+COPY artifacts/deps/golang-${GOLANG_VERSION}.tar.gz /build/
+RUN tar xzf /build/golang-${GOLANG_VERSION}.tar.gz -C / \
+ && rm /build/golang-${GOLANG_VERSION}.tar.gz
 
 ENV GOROOT=/usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
 
-# C-библиотеки для статической линковки (make deps)
-COPY artifacts/deps/libdevmapper-${DEVMAPPER_VERSION}.tar.gz /build/
-RUN tar xzf /build/libdevmapper-${DEVMAPPER_VERSION}.tar.gz -C / \
- && rm /build/libdevmapper-${DEVMAPPER_VERSION}.tar.gz
+# C-библиотеки для статической линковки (make deps).
+# Fat packages: libdevmapper включает libaio, libbtrfs включает zlib/zstd/libmount/lzo/e2fsprogs/libudev,
+# libsystemd включает libcap/libmount/libgpg-error/libgcrypt/libseccomp/liblzma/liblz4/libselinux.
+COPY artifacts/deps/libdevmapper-${LIBDEVMAPPER_VERSION}.tar.gz /build/
+RUN tar xzf /build/libdevmapper-${LIBDEVMAPPER_VERSION}.tar.gz -C / \
+ && rm /build/libdevmapper-${LIBDEVMAPPER_VERSION}.tar.gz
 
-COPY artifacts/deps/libbtrfs-${BTRFS_VERSION}.tar.gz /build/
-RUN tar xzf /build/libbtrfs-${BTRFS_VERSION}.tar.gz -C / \
- && rm /build/libbtrfs-${BTRFS_VERSION}.tar.gz
+COPY artifacts/deps/libbtrfs-${LIBBTRFS_VERSION}.tar.gz /build/
+RUN tar xzf /build/libbtrfs-${LIBBTRFS_VERSION}.tar.gz -C / \
+ && rm /build/libbtrfs-${LIBBTRFS_VERSION}.tar.gz
 
-COPY artifacts/deps/libseccomp-${SECCOMP_VERSION}.tar.gz /build/
-RUN tar xzf /build/libseccomp-${SECCOMP_VERSION}.tar.gz -C / \
- && rm /build/libseccomp-${SECCOMP_VERSION}.tar.gz
+COPY artifacts/deps/libseccomp-${LIBSECCOMP_VERSION}.tar.gz /build/
+RUN tar xzf /build/libseccomp-${LIBSECCOMP_VERSION}.tar.gz -C / \
+ && rm /build/libseccomp-${LIBSECCOMP_VERSION}.tar.gz
 
-COPY artifacts/deps/libsystemd-${SYSTEMD_VERSION}.tar.gz /build/
-RUN tar xzf /build/libsystemd-${SYSTEMD_VERSION}.tar.gz -C / \
- && rm /build/libsystemd-${SYSTEMD_VERSION}.tar.gz
+COPY artifacts/deps/libsystemd-${LIBSYSTEMD_VERSION}.tar.gz /build/
+RUN tar xzf /build/libsystemd-${LIBSYSTEMD_VERSION}.tar.gz -C / \
+ && rm /build/libsystemd-${LIBSYSTEMD_VERSION}.tar.gz
 
-# Транзитивные C-зависимости для статической линковки (make deps)
-COPY artifacts/deps/libcap-${LIBCAP_VERSION}.tar.gz /build/
-RUN tar xzf /build/libcap-${LIBCAP_VERSION}.tar.gz -C / \
- && rm /build/libcap-${LIBCAP_VERSION}.tar.gz
-
-COPY artifacts/deps/libmount-${LIBMOUNT_VERSION}.tar.gz /build/
-RUN tar xzf /build/libmount-${LIBMOUNT_VERSION}.tar.gz -C / \
- && rm /build/libmount-${LIBMOUNT_VERSION}.tar.gz
-
-COPY artifacts/deps/libgpg-error-${GPG_ERROR_VERSION}.tar.gz /build/
-RUN tar xzf /build/libgpg-error-${GPG_ERROR_VERSION}.tar.gz -C / \
- && rm /build/libgpg-error-${GPG_ERROR_VERSION}.tar.gz
-
-COPY artifacts/deps/libgcrypt-${GCRYPT_VERSION}.tar.gz /build/
-RUN tar xzf /build/libgcrypt-${GCRYPT_VERSION}.tar.gz -C / \
- && rm /build/libgcrypt-${GCRYPT_VERSION}.tar.gz
+RUN ldconfig
 
 WORKDIR /build
 

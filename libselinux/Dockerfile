@@ -10,21 +10,13 @@
 # Использование: COPY --from=libselinux:2.6-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
-ARG SELINUX_VERSION=2.6
+ARG LIBSELINUX_VERSION=2.6
 ARG SEPOL_VERSION=2.6
 ARG PCRE_VERSION=8.45
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        pkg-config \
-        flex \
- && rm -rf /var/lib/apt/lists/*
 
 # --- PCRE (build-зависимость) ---
 COPY artifacts/deps/pcre-${PCRE_VERSION}.tar.gz /build/
@@ -38,7 +30,7 @@ WORKDIR /build
 # Из libsepol-X.Y.tar.gz берём подкаталог libsepol/
 # Из libselinux-X.Y.tar.gz берём подкаталог libselinux/
 COPY artifacts/src/libsepol-${SEPOL_VERSION}.tar.gz /build/
-COPY artifacts/src/libselinux-${SELINUX_VERSION}.tar.gz /build/
+COPY artifacts/src/libselinux-${LIBSELINUX_VERSION}.tar.gz /build/
 
 # --- libsepol ---
 RUN mkdir -p /build/libsepol \
@@ -62,11 +54,11 @@ RUN make -C /build/libsepol PREFIX=/out/usr SHLIBDIR=/out/usr/lib install \
 
 # --- libselinux ---
 RUN mkdir -p /build/libselinux \
- && tar xzf libselinux-${SELINUX_VERSION}.tar.gz \
+ && tar xzf libselinux-${LIBSELINUX_VERSION}.tar.gz \
       --wildcards --strip-components=2 \
       -C /build/libselinux \
       "*/libselinux/" \
- && rm libselinux-${SELINUX_VERSION}.tar.gz
+ && rm libselinux-${LIBSELINUX_VERSION}.tar.gz
 
 # Сборка libselinux
 RUN make -C /build/libselinux -j$(nproc) PREFIX=/usr

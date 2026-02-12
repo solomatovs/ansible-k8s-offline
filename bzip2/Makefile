@@ -6,7 +6,7 @@ BASE_IMAGE := astra-linux:2.12
 
 ARTIFACTS_SRC := artifacts/src
 
-SRC_FILE = $(ARTIFACTS_SRC)/bzip2-$(V).tar.gz
+SRC_FILE = $(ARTIFACTS_SRC)/bzip2-$(PF_VERSION).tar.gz
 
 _TEST_CMD = sh -c '\
 	test -f /out/usr/include/bzlib.h && \

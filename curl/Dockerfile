@@ -9,8 +9,9 @@
 # Использование: COPY --from=curl:8.4.0-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
 ARG CURL_VERSION=8.4.0
 ARG ZLIB_VERSION=1.3.1
@@ -25,15 +26,6 @@ ARG ZSTD_VERSION=1.5.5
 ARG BROTLI_VERSION=1.1.0
 ARG NGHTTP3_VERSION=1.1.0
 ARG NGTCP2_VERSION=1.2.0
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        pkg-config \
-        perl \
- && rm -rf /var/lib/apt/lists/*
 
 # C-зависимости для сборки (make deps)
 COPY artifacts/deps/zlib-${ZLIB_VERSION}.tar.gz /build/

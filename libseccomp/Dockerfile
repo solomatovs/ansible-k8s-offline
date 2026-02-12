@@ -6,28 +6,20 @@
 #   /out/usr/lib/pkgconfig/libseccomp.pc — pkg-config
 # Использование: COPY --from=libseccomp:2.5.5-build /out /
 
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
-ARG SECCOMP_VERSION=2.5.5
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        gperf \
-        pkg-config \
- && rm -rf /var/lib/apt/lists/*
+ARG LIBSECCOMP_VERSION=2.5.5
 
 WORKDIR /build
 
-COPY artifacts/src/libseccomp-${SECCOMP_VERSION}.tar.gz /build/
+COPY artifacts/src/libseccomp-${LIBSECCOMP_VERSION}.tar.gz /build/
 
 RUN mkdir -p /build/libseccomp \
- && tar xzf libseccomp-${SECCOMP_VERSION}.tar.gz --strip-components=1 -C /build/libseccomp \
- && rm libseccomp-${SECCOMP_VERSION}.tar.gz
+ && tar xzf libseccomp-${LIBSECCOMP_VERSION}.tar.gz --strip-components=1 -C /build/libseccomp \
+ && rm libseccomp-${LIBSECCOMP_VERSION}.tar.gz
 
 WORKDIR /build/libseccomp
 

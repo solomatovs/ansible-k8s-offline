@@ -11,34 +11,19 @@
 # Использование: COPY --from=libsystemd:241-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${BASE_IMAGE} AS builder
+FROM ${TOOLCHAIN_IMAGE} AS builder
 
-ARG SYSTEMD_VERSION=241
+ARG LIBSYSTEMD_VERSION=241
 ARG LIBCAP_VERSION=2.25
 ARG LIBMOUNT_VERSION=2.30.2
-ARG GPG_ERROR_VERSION=1.35
-ARG GCRYPT_VERSION=1.7.6
-ARG SECCOMP_VERSION=2.5.5
-ARG LZMA_VERSION=5.2.2
-ARG LZ4_VERSION=1.9.3
-ARG SELINUX_VERSION=2.6
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-# systemd v241 требует meson >= 0.46, в Astra Linux 2.12 есть 0.49.0 — совместимо
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        meson \
-        ninja-build \
-        pkg-config \
-        gperf \
-        m4 \
-        python3 \
-        python3-jinja2 \
-        gettext \
- && rm -rf /var/lib/apt/lists/*
+ARG LIBGPG_ERROR_VERSION=1.35
+ARG LIBGCRYPT_VERSION=1.7.6
+ARG LIBSECCOMP_VERSION=2.5.5
+ARG LIBLZMA_VERSION=5.2.2
+ARG LIBLZ4_VERSION=1.9.3
+ARG LIBSELINUX_VERSION=2.6
 
 # C-зависимости для сборки (make deps)
 COPY artifacts/deps/libcap-${LIBCAP_VERSION}.tar.gz /build/
@@ -49,37 +34,37 @@ COPY artifacts/deps/libmount-${LIBMOUNT_VERSION}.tar.gz /build/
 RUN tar xzf /build/libmount-${LIBMOUNT_VERSION}.tar.gz -C / \
  && rm /build/libmount-${LIBMOUNT_VERSION}.tar.gz
 
-COPY artifacts/deps/libgpg-error-${GPG_ERROR_VERSION}.tar.gz /build/
-RUN tar xzf /build/libgpg-error-${GPG_ERROR_VERSION}.tar.gz -C / \
- && rm /build/libgpg-error-${GPG_ERROR_VERSION}.tar.gz
+COPY artifacts/deps/libgpg-error-${LIBGPG_ERROR_VERSION}.tar.gz /build/
+RUN tar xzf /build/libgpg-error-${LIBGPG_ERROR_VERSION}.tar.gz -C / \
+ && rm /build/libgpg-error-${LIBGPG_ERROR_VERSION}.tar.gz
 
-COPY artifacts/deps/libgcrypt-${GCRYPT_VERSION}.tar.gz /build/
-RUN tar xzf /build/libgcrypt-${GCRYPT_VERSION}.tar.gz -C / \
- && rm /build/libgcrypt-${GCRYPT_VERSION}.tar.gz
+COPY artifacts/deps/libgcrypt-${LIBGCRYPT_VERSION}.tar.gz /build/
+RUN tar xzf /build/libgcrypt-${LIBGCRYPT_VERSION}.tar.gz -C / \
+ && rm /build/libgcrypt-${LIBGCRYPT_VERSION}.tar.gz
 
-COPY artifacts/deps/libseccomp-${SECCOMP_VERSION}.tar.gz /build/
-RUN tar xzf /build/libseccomp-${SECCOMP_VERSION}.tar.gz -C / \
- && rm /build/libseccomp-${SECCOMP_VERSION}.tar.gz
+COPY artifacts/deps/libseccomp-${LIBSECCOMP_VERSION}.tar.gz /build/
+RUN tar xzf /build/libseccomp-${LIBSECCOMP_VERSION}.tar.gz -C / \
+ && rm /build/libseccomp-${LIBSECCOMP_VERSION}.tar.gz
 
-COPY artifacts/deps/liblzma-${LZMA_VERSION}.tar.gz /build/
-RUN tar xzf /build/liblzma-${LZMA_VERSION}.tar.gz -C / \
- && rm /build/liblzma-${LZMA_VERSION}.tar.gz
+COPY artifacts/deps/liblzma-${LIBLZMA_VERSION}.tar.gz /build/
+RUN tar xzf /build/liblzma-${LIBLZMA_VERSION}.tar.gz -C / \
+ && rm /build/liblzma-${LIBLZMA_VERSION}.tar.gz
 
-COPY artifacts/deps/liblz4-${LZ4_VERSION}.tar.gz /build/
-RUN tar xzf /build/liblz4-${LZ4_VERSION}.tar.gz -C / \
- && rm /build/liblz4-${LZ4_VERSION}.tar.gz
+COPY artifacts/deps/liblz4-${LIBLZ4_VERSION}.tar.gz /build/
+RUN tar xzf /build/liblz4-${LIBLZ4_VERSION}.tar.gz -C / \
+ && rm /build/liblz4-${LIBLZ4_VERSION}.tar.gz
 
-COPY artifacts/deps/libselinux-${SELINUX_VERSION}.tar.gz /build/
-RUN tar xzf /build/libselinux-${SELINUX_VERSION}.tar.gz -C / \
- && rm /build/libselinux-${SELINUX_VERSION}.tar.gz
+COPY artifacts/deps/libselinux-${LIBSELINUX_VERSION}.tar.gz /build/
+RUN tar xzf /build/libselinux-${LIBSELINUX_VERSION}.tar.gz -C / \
+ && rm /build/libselinux-${LIBSELINUX_VERSION}.tar.gz
 
 WORKDIR /build
 
-COPY artifacts/src/systemd-${SYSTEMD_VERSION}.tar.gz /build/
+COPY artifacts/src/systemd-${LIBSYSTEMD_VERSION}.tar.gz /build/
 
 RUN mkdir -p /build/systemd \
- && tar xzf systemd-${SYSTEMD_VERSION}.tar.gz --strip-components=1 -C /build/systemd \
- && rm systemd-${SYSTEMD_VERSION}.tar.gz
+ && tar xzf systemd-${LIBSYSTEMD_VERSION}.tar.gz --strip-components=1 -C /build/systemd \
+ && rm systemd-${LIBSYSTEMD_VERSION}.tar.gz
 
 WORKDIR /build/systemd
 
@@ -118,6 +103,30 @@ RUN meson setup build \
  && find build -name 'libsystemd.pc' | head -1 | xargs -I{} cp {} /out/usr/lib/pkgconfig/ \
  && cp src/systemd/*.h /out/usr/include/systemd/ \
  && { cp build/src/systemd/*.h /out/usr/include/systemd/ 2>/dev/null || true; }
+
+# Fat package: включаем все build-зависимости (.a, .so, headers, pkgconfig) в /out.
+# Это позволяет потребителям (buildah) зависеть только от libsystemd.
+RUN for lib in libcap libmount libblkid libuuid libgpg-error libgcrypt \
+              libseccomp liblzma liblz4 libselinux libsepol; do \
+      cp -a /usr/lib/${lib}.a /out/usr/lib/ 2>/dev/null || true; \
+      cp -a /usr/lib/${lib}.so* /out/usr/lib/ 2>/dev/null || true; \
+    done \
+ && mkdir -p /out/usr/include/sys /out/usr/include/lzma \
+ && cp -p /usr/include/sys/capability.h /out/usr/include/sys/ 2>/dev/null || true \
+ && cp -rp /usr/include/libmount /out/usr/include/ 2>/dev/null || true \
+ && cp -rp /usr/include/blkid /out/usr/include/ 2>/dev/null || true \
+ && cp -rp /usr/include/uuid /out/usr/include/ 2>/dev/null || true \
+ && cp -p /usr/include/gpg-error.h /out/usr/include/ 2>/dev/null || true \
+ && cp -p /usr/include/gcrypt.h /out/usr/include/ 2>/dev/null || true \
+ && cp -p /usr/include/seccomp.h /out/usr/include/ 2>/dev/null || true \
+ && cp -p /usr/include/lzma.h /out/usr/include/ 2>/dev/null || true \
+ && cp -rp /usr/include/lzma/* /out/usr/include/lzma/ 2>/dev/null || true \
+ && cp -p /usr/include/lz4.h /usr/include/lz4hc.h /usr/include/lz4frame.h /out/usr/include/ 2>/dev/null || true \
+ && cp -rp /usr/include/selinux /out/usr/include/ 2>/dev/null || true \
+ && cp -rp /usr/include/sepol /out/usr/include/ 2>/dev/null || true \
+ && for pc in libcap mount blkid uuid gpg-error libgcrypt libseccomp liblzma liblz4 libselinux libsepol; do \
+      cp -p /usr/lib/pkgconfig/${pc}.pc /out/usr/lib/pkgconfig/ 2>/dev/null || true; \
+    done
 
 # Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
