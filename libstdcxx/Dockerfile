@@ -1,24 +1,17 @@
 # Сборка libstdc++ из исходников GCC.
-# GMP, MPFR, MPC устанавливаются из apt (libgmp-dev, libmpfr-dev, libmpc-dev).
 # Результат: /out — только .so файлы libstdc++ (runtime).
 #   /out/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.25  — основная библиотека
-# Использование: COPY --from=libstdcxx /out / && ldconfig
+#   /out/usr/lib/x86_64-linux-gnu/libgcc_s.so.1        — GCC runtime
+# Использование: COPY --from=libstdcxx:8.5.0-build /out / && ldconfig
 
 ARG BASE_IMAGE=astra-linux:2.12
 
 FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### compilation ####
 ARG LIBSTDCXX_VERSION=8.5.0
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        libgmp-dev \
-        libmpfr-dev \
-        libmpc-dev \
- && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
@@ -42,7 +35,11 @@ RUN mkdir build && cd build \
 RUN mkdir -p /stage/usr/lib/x86_64-linux-gnu \
  && cp -a /out/usr/lib/lib64/libstdc++.so* /stage/usr/lib/x86_64-linux-gnu/ \
  && cp -a /out/usr/lib/lib64/libgcc_s.so* /stage/usr/lib/x86_64-linux-gnu/ \
- && rm -rf /out && mv /stage /out
+ && rm -rf /out && mv /stage /out \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
 # Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
