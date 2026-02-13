@@ -6,11 +6,13 @@
 #   /out/usr/lib/pkgconfig/*.pc  — pkg-config
 # Использование: COPY --from=libmd:1.1.0-build /out /
 
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### compilation ####
 ARG LIBMD_VERSION=1.1.0
 
 WORKDIR /build
@@ -21,8 +23,12 @@ RUN tar -xf libmd-${LIBMD_VERSION}.tar.xz \
  && cd libmd-${LIBMD_VERSION} \
  && ./configure --prefix=/usr --enable-static --enable-shared \
  && make -j$(nproc) \
- && make DESTDIR=/out install
+ && make DESTDIR=/out install \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
+
 COPY --from=builder /out /out

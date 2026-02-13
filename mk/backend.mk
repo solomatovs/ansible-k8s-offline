@@ -4,6 +4,12 @@
 #
 # FORCE=1 — принудительная пересборка (--no-cache + пропуск ensure-проверок)
 # =============================================================================
+
+# --- Стандартные пути артефактов (?= позволяет переопределить в проекте) ---
+ARTIFACTS_SRC    ?= artifacts/src
+ARTIFACTS_BUILD  ?= artifacts/build
+ARTIFACTS_IMAGES ?= artifacts/images
+
 BACKEND ?= buildah
 
 ifdef FORCE

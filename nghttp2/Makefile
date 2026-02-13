@@ -4,10 +4,6 @@
 PROJECT    := nghttp2
 BASE_IMAGE := astra-linux:2.12
 
-ARTIFACTS_SRC := artifacts/src
-
-SRC_FILE = $(ARTIFACTS_SRC)/nghttp2-$(PF_VERSION).tar.gz
-
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \
 	test -f /out/usr/lib/libnghttp2.a && \
@@ -17,10 +13,5 @@ _TEST_CMD = sh -c '\
 	echo "=== pkg-config ===" && \
 	cat /out/usr/lib/pkgconfig/libnghttp2.pc && \
 	echo "" && echo "nghttp2 build: ok"'
-
-# --- Скачивание исходников ---
-$(ARTIFACTS_SRC)/nghttp2-%.tar.gz:
-	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(GITHUB_URL)/nghttp2/nghttp2/releases/download/v$*/nghttp2-$*.tar.gz
 
 include ../mk/project.mk

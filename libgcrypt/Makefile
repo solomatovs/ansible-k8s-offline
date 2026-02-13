@@ -4,10 +4,6 @@
 PROJECT     := libgcrypt
 BASE_IMAGE  := astra-linux:2.12
 
-ARTIFACTS_SRC := artifacts/src
-
-SRC_FILE = $(ARTIFACTS_SRC)/libgcrypt-$(PF_VERSION).tar.bz2
-
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \
 	test -f /out/usr/lib/libgcrypt.a && \
@@ -18,10 +14,5 @@ _TEST_CMD = sh -c '\
 	echo "=== shared libraries ===" && \
 	find /out -name "*.so*" -exec ls -lh {} \; && \
 	echo "" && echo "libgcrypt build: ok"'
-
-# --- Скачивание исходников ---
-$(ARTIFACTS_SRC)/libgcrypt-%.tar.bz2:
-	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(GNUPG_FTP_URL)/libgcrypt/libgcrypt-$*.tar.bz2
 
 include ../mk/project.mk

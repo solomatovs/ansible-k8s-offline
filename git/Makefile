@@ -4,10 +4,6 @@
 PROJECT    := git
 BASE_IMAGE := astra-linux:2.12
 
-ARTIFACTS_SRC := artifacts/src
-
-SRC_FILE = $(ARTIFACTS_SRC)/git-$(PF_VERSION).tar.gz
-
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \
 	test -f /out/usr/bin/git && \
@@ -15,10 +11,5 @@ _TEST_CMD = sh -c '\
 	echo "=== version ===" && \
 	/out/usr/bin/git --version && \
 	echo "" && echo "git build: ok"'
-
-# --- Скачивание исходников ---
-$(ARTIFACTS_SRC)/git-%.tar.gz:
-	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(GITHUB_URL)/git/git/archive/refs/tags/v$*.tar.gz
 
 include ../mk/project.mk

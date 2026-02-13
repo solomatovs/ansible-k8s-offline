@@ -1,17 +1,14 @@
 # DevOps-образ: rootless buildah + dpkg + git + golang + gcc + curl на Astra Linux.
-# Объединяет артефакты из проектов dpkg/, buildah/, git/, golang/, gcc/, curl/.
-# Бинарные зависимости подаются как файлы из artifacts/deps/ (make deps).
+# Объединяет артефакты из pre-built образов (COPY --from).
 #
-# Образы (COPY --from в Dockerfile):
+# Образы (COPY --from):
 #   - glibc:2.28-build          — runtime .so + dev-файлы (замена libc6-dev)
 #   - libstdcxx:8.5.0-build     — C++ runtime
 #   - gcc:8.5.0-build           — компилятор (замена apt gcc)
-#   - curl + 12 runtime deps    — CLI + shared libraries (замена apt curl)
-# Зависимости (должны быть извлечены до сборки: make deps):
-#   - artifacts/deps/dpkg-1.23.5.tar.gz
-#   - artifacts/deps/buildah-1.38.0.tar.gz
-#   - artifacts/deps/git-2.42.0.tar.gz
-#   - artifacts/deps/golang-1.24.5.tar.gz
+#   - git:2.42.0-build          — git + curl + все runtime shared libraries
+#   - dpkg:1.23.5-build         — rootless dpkg (статический бинарник)
+#   - buildah:1.38.0-build      — buildah (статический бинарник)
+#   - golang:1.24.5-build       — Go toolchain
 #
 # Образ не привязан к конкретному пользователю —
 # можно запустить под любым uid если смонтировать:
@@ -19,100 +16,45 @@
 #   - /etc/subuid и /etc/subgid с split-диапазонами (пропустить собственный uid)
 
 ARG BASE_IMAGE=astra-linux:2.12
-ARG GLIBC_VERSION=2.28
-ARG LIBSTDCXX_VERSION=8.5.0
-ARG GCC_VERSION=8.5.0
-ARG CURL_VERSION=8.4.0
-ARG ZLIB_VERSION=1.3.1
-ARG OPENSSL_VERSION=1.1.1w
-ARG KERBEROS_VERSION=1.20.1
-ARG NGHTTP2_VERSION=1.58.0
-ARG OPENLDAP_VERSION=2.6.6
-ARG LIBSSH2_VERSION=1.11.0
-ARG LIBUNISTRING_VERSION=1.1
-ARG LIBIDN2_VERSION=2.3.4
-ARG ZSTD_VERSION=1.5.5
-ARG BROTLI_VERSION=1.1.0
-ARG NGHTTP3_VERSION=1.1.0
-ARG NGTCP2_VERSION=1.2.0
-ARG DPKG_VERSION=1.23.5
-ARG BUILDAH_VERSION=1.38.0
-ARG GIT_VERSION=2.42.0
-ARG GOLANG_VERSION=1.24.5
-ARG RELEASE_INFO=""
+ARG GLIBC_IMAGE
+ARG LIBSTDCXX_IMAGE
+ARG GCC_IMAGE
+ARG GIT_IMAGE
+ARG DPKG_IMAGE
+ARG BUILDAH_IMAGE
+ARG GOLANG_IMAGE
 
-# Ссылки на pre-built образы (COPY --from не запускает код, нет segfault)
-FROM glibc:${GLIBC_VERSION}-build       AS glibc
-FROM libstdcxx:${LIBSTDCXX_VERSION}-build AS libstdcxx
-FROM gcc:${GCC_VERSION}-build           AS gcc-build
-
-# curl + все его runtime-зависимости (shared libraries)
-FROM zlib:${ZLIB_VERSION}-build               AS zlib-build
-FROM openssl:${OPENSSL_VERSION}-build         AS openssl-build
-FROM kerberos:${KERBEROS_VERSION}-build       AS kerberos-build
-FROM nghttp2:${NGHTTP2_VERSION}-build         AS nghttp2-build
-FROM openldap:${OPENLDAP_VERSION}-build       AS openldap-build
-FROM libssh2:${LIBSSH2_VERSION}-build         AS libssh2-build
-FROM libunistring:${LIBUNISTRING_VERSION}-build AS libunistring-build
-FROM libidn2:${LIBIDN2_VERSION}-build         AS libidn2-build
-FROM zstd:${ZSTD_VERSION}-build               AS zstd-build
-FROM brotli:${BROTLI_VERSION}-build           AS brotli-build
-FROM nghttp3:${NGHTTP3_VERSION}-build         AS nghttp3-build
-FROM ngtcp2:${NGTCP2_VERSION}-build           AS ngtcp2-build
-FROM curl:${CURL_VERSION}-build               AS curl-build
-
-# --- Промежуточный этап: бандл curl + все runtime shared libraries ---
-FROM ${BASE_IMAGE} AS curl-bundle
-COPY --from=zlib-build         /out/ /bundle/
-COPY --from=openssl-build      /out/ /bundle/
-COPY --from=kerberos-build     /out/ /bundle/
-COPY --from=nghttp2-build      /out/ /bundle/
-COPY --from=openldap-build     /out/ /bundle/
-COPY --from=libssh2-build      /out/ /bundle/
-COPY --from=libunistring-build /out/ /bundle/
-COPY --from=libidn2-build      /out/ /bundle/
-COPY --from=zstd-build         /out/ /bundle/
-COPY --from=brotli-build       /out/ /bundle/
-COPY --from=nghttp3-build      /out/ /bundle/
-COPY --from=ngtcp2-build       /out/ /bundle/
-COPY --from=curl-build         /out/ /bundle/
+# Ссылки на pre-built образы
+FROM ${GLIBC_IMAGE}    AS glibc-build
+FROM ${LIBSTDCXX_IMAGE} AS libstdcxx-build
+FROM ${GCC_IMAGE}      AS gcc-build
+FROM ${GIT_IMAGE}      AS git-build
+FROM ${DPKG_IMAGE}     AS dpkg-build
+FROM ${BUILDAH_IMAGE}  AS buildah-build
+FROM ${GOLANG_IMAGE}   AS golang-build
 
 # =============================================================================
 # Основной образ
 # =============================================================================
 FROM ${BASE_IMAGE}
 
-ARG GLIBC_VERSION
-ARG LIBSTDCXX_VERSION
-ARG GCC_VERSION
-ARG CURL_VERSION
-ARG DPKG_VERSION
-ARG BUILDAH_VERSION
-ARG GIT_VERSION
-ARG GOLANG_VERSION
-ARG RELEASE_INFO
+ARG RELEASE_INFO=""
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # --- dpkg (rootless-патченный, статические бинарники) ---
-COPY artifacts/deps/dpkg-${DPKG_VERSION}.tar.gz /build/
-RUN tar xzf /build/dpkg-${DPKG_VERSION}.tar.gz -C / \
- && rm /build/dpkg-${DPKG_VERSION}.tar.gz
+COPY --from=dpkg-build /out/ /
 
 # --- buildah (статический бинарник) ---
-COPY artifacts/deps/buildah-${BUILDAH_VERSION}.tar.gz /build/
-RUN tar xzf /build/buildah-${BUILDAH_VERSION}.tar.gz -C / \
- && rm /build/buildah-${BUILDAH_VERSION}.tar.gz
+COPY --from=buildah-build /out/ /
 
-# --- git (статический бинарник из нашей сборки) ---
-COPY artifacts/deps/git-${GIT_VERSION}.tar.gz /build/
-RUN tar xzf /build/git-${GIT_VERSION}.tar.gz -C / \
- && rm /build/git-${GIT_VERSION}.tar.gz
+# --- git + curl + все runtime shared libraries ---
+# git-build содержит git, curl и все C-библиотеки (zlib, openssl, kerberos,
+# nghttp2, openldap, libssh2, libunistring, libidn2, zstd, brotli, nghttp3, ngtcp2)
+COPY --from=git-build /out/ /
 
 # --- golang ---
-COPY artifacts/deps/golang-${GOLANG_VERSION}.tar.gz /build/
-RUN tar xzf /build/golang-${GOLANG_VERSION}.tar.gz -C / \
- && rm /build/golang-${GOLANG_VERSION}.tar.gz
+COPY --from=golang-build /out/ /
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 
@@ -131,24 +73,21 @@ RUN apt-get update \
 # ВАЖНО: glibc заменяется ПОСЛЕ apt-get install, т.к. apt устанавливает libc6 (2.24)
 # из репозитория и перезаписал бы наши файлы.
 # COPY --from безопасно заменяет .so файлы без запуска процессов в контейнере.
-COPY --from=glibc /out/lib/ /lib/
-COPY --from=glibc /out/usr/lib/ /usr/lib/
-COPY --from=glibc /out/usr/include/ /usr/include/
+COPY --from=glibc-build /out/lib/ /lib/
+COPY --from=glibc-build /out/usr/lib/ /usr/lib/
+COPY --from=glibc-build /out/usr/include/ /usr/include/
 # sln — статический бинарник из glibc для безопасного обновления symlinks.
 # ELF PT_INTERP в Astra указывает на /lib64/ld-linux-x86-64.so.2 → ld-2.24.so.
 # Без обновления этого symlink ядро загружает старый ld-2.24 + новый libc-2.28 = segfault.
-COPY --from=glibc /out/sbin/sln /tmp/sln
+COPY --from=glibc-build /out/sbin/sln /tmp/sln
 RUN ["/tmp/sln", "/lib/x86_64-linux-gnu/ld-2.28.so", "/lib64/ld-linux-x86-64.so.2"]
 RUN ldconfig
 
 # --- libstdc++ (GLIBCXX_3.4.25 для VSCode Server / Node.js 20+) ---
-COPY --from=libstdcxx /out/usr/lib/ /usr/lib/
+COPY --from=libstdcxx-build /out/usr/lib/ /usr/lib/
 
 # --- gcc (компилятор из нашей сборки — замена apt gcc) ---
 COPY --from=gcc-build /out/ /
-
-# --- curl + все runtime shared libraries (замена apt curl) ---
-COPY --from=curl-bundle /bundle/ /
 
 RUN ldconfig && rm -f /tmp/sln
 

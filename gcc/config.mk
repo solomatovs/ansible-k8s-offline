@@ -2,8 +2,6 @@
 # Переопределить: создать config.local.mk или задать переменные окружения.
 # Подробнее: см. config.local.mk.example
 
-GNU_URL ?= https://ftp.gnu.org/gnu
-
 # Build tools (собираются отдельными проектами, используются через COPY --from)
 GMP_VERSION  ?= 6.2.1
 MPFR_VERSION ?= 4.2.1

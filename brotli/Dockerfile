@@ -8,11 +8,13 @@
 #   /out/usr/lib/pkgconfig/libbrotli*.pc — pkg-config
 # Использование: COPY --from=brotli:1.1.0-build /out /
 
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### compilation ####
 ARG BROTLI_VERSION=1.1.0
 
 WORKDIR /build
@@ -37,8 +39,12 @@ RUN cd brotli-${BROTLI_VERSION} \
           -DBUILD_SHARED_LIBS=OFF \
           .. \
  && make -j$(nproc) \
- && cp libbrotli*.a /out/usr/lib/
+ && cp libbrotli*.a /out/usr/lib/ \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
+
 COPY --from=builder /out /out

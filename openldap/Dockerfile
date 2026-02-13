@@ -1,5 +1,4 @@
 # Сборка статической и динамической библиотеки OpenLDAP из исходников.
-# C-зависимость (openssl) подаётся как файловая зависимость из artifacts/deps/ (make deps).
 # Результат: /out (--prefix=/usr)
 #   /out/usr/lib/libldap.a             — статическая библиотека LDAP
 #   /out/usr/lib/liblber.a             — статическая библиотека LBER
@@ -8,17 +7,16 @@
 # Использование: COPY --from=openldap:2.6.6-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### <zlib:1.3.1:compilation> ####
+#### <openssl:1.1.1w:compilation> ####
+
+#### compilation ####
 ARG OPENLDAP_VERSION=2.6.6
-ARG OPENSSL_VERSION=1.1.1w
-
-# C-зависимость для сборки (make deps)
-COPY artifacts/deps/openssl-${OPENSSL_VERSION}.tar.gz /build/
-RUN tar xzf /build/openssl-${OPENSSL_VERSION}.tar.gz -C / \
- && rm /build/openssl-${OPENSSL_VERSION}.tar.gz
 
 WORKDIR /build
 
@@ -35,8 +33,11 @@ RUN tar xzf openldap-${OPENLDAP_VERSION}.tgz \
  && make -C include DESTDIR=/out install \
  && make -C libraries DESTDIR=/out install \
  && find /out -name '*.la' -delete \
- && { rm -rf /out/usr/share/man 2>/dev/null || true; }
+ && { rm -rf /out/usr/share/man 2>/dev/null || true; } \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
 COPY --from=builder /out /out

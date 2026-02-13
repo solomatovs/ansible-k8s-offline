@@ -4,10 +4,6 @@
 PROJECT     := liblzma
 BASE_IMAGE  := astra-linux:2.12
 
-ARTIFACTS_SRC := artifacts/src
-
-SRC_FILE = $(ARTIFACTS_SRC)/xz-$(PF_VERSION).tar.gz
-
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \
 	test -f /out/usr/lib/liblzma.a && \
@@ -21,10 +17,5 @@ _TEST_CMD = sh -c '\
 	echo "=== pkg-config ===" && \
 	cat /out/usr/lib/pkgconfig/liblzma.pc && \
 	echo "" && echo "liblzma build: ok"'
-
-# --- Скачивание исходников ---
-$(ARTIFACTS_SRC)/xz-%.tar.gz:
-	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(XZ_MIRROR)/xz-$*.tar.gz
 
 include ../mk/project.mk

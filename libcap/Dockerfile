@@ -6,11 +6,13 @@
 #   /out/usr/include/sys/securebits.h  — заголовочный файл
 # Использование: COPY --from=libcap:2.25-build /out /
 
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### compilation ####
 ARG LIBCAP_VERSION=2.25
 
 WORKDIR /build
@@ -25,8 +27,12 @@ WORKDIR /build/libcap
 
 # Собираем только библиотеку (без progs и pam_cap)
 RUN make -C libcap -j$(nproc) lib=lib prefix=/usr \
- && make -C libcap DESTDIR=/out prefix=/usr lib=lib install
+ && make -C libcap DESTDIR=/out prefix=/usr lib=lib install \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
+
 COPY --from=builder /out /out

@@ -1,1 +1,2 @@
-XZ_MIRROR ?= https://tukaani.org/xz
+# config.mk — настройки по умолчанию
+# Переопределить: создать config.local.mk или задать переменные окружения.

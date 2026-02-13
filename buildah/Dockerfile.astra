@@ -1,18 +1,24 @@
 # Сборка buildah из исходников со статической компиляцией (CGO + static linking).
-# Go компилятор и C-библиотеки подаются как файловые зависимости из artifacts/deps/ (make deps).
+# Go компилятор и C-библиотеки берутся из pre-built образов (COPY --from).
 # Результат: /out/usr/bin/buildah (статический бинарник)
 # Использование: COPY --from=buildah:1.38.0-r1-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG GOLANG_IMAGE
+ARG LIBDEVMAPPER_IMAGE
+ARG LIBBTRFS_IMAGE
+ARG LIBSECCOMP_IMAGE
+ARG LIBSYSTEMD_IMAGE
+
+FROM ${GOLANG_IMAGE} AS golang-build
+FROM ${LIBDEVMAPPER_IMAGE} AS libdevmapper-build
+FROM ${LIBBTRFS_IMAGE} AS libbtrfs-build
+FROM ${LIBSECCOMP_IMAGE} AS libseccomp-build
+FROM ${LIBSYSTEMD_IMAGE} AS libsystemd-build
 
 FROM ${BASE_IMAGE} AS builder
 
 ARG BUILDAH_VERSION=1.38.0
-ARG GOLANG_VERSION=1.22.6
-ARG LIBDEVMAPPER_VERSION=2.03.25
-ARG LIBBTRFS_VERSION=6.6.3
-ARG LIBSECCOMP_VERSION=2.5.5
-ARG LIBSYSTEMD_VERSION=241
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -24,32 +30,22 @@ RUN apt-get update \
         pkg-config \
  && rm -rf /var/lib/apt/lists/*
 
-# Go компилятор из отдельного проекта (make deps)
-COPY artifacts/deps/golang-${GOLANG_VERSION}.tar.gz /build/
-RUN tar xzf /build/golang-${GOLANG_VERSION}.tar.gz -C / \
- && rm /build/golang-${GOLANG_VERSION}.tar.gz
+# Go компилятор из отдельного проекта
+COPY --from=golang-build /out/ /
 
 ENV GOROOT=/usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
 
-# C-библиотеки для статической линковки (make deps).
-# Fat packages: libdevmapper включает libaio, libbtrfs включает zlib/zstd/libmount/lzo/e2fsprogs/libudev,
-# libsystemd включает libcap/libmount/libgpg-error/libgcrypt/libseccomp/liblzma/liblz4/libselinux.
-COPY artifacts/deps/libdevmapper-${LIBDEVMAPPER_VERSION}.tar.gz /build/
-RUN tar xzf /build/libdevmapper-${LIBDEVMAPPER_VERSION}.tar.gz -C / \
- && rm /build/libdevmapper-${LIBDEVMAPPER_VERSION}.tar.gz
-
-COPY artifacts/deps/libbtrfs-${LIBBTRFS_VERSION}.tar.gz /build/
-RUN tar xzf /build/libbtrfs-${LIBBTRFS_VERSION}.tar.gz -C / \
- && rm /build/libbtrfs-${LIBBTRFS_VERSION}.tar.gz
-
-COPY artifacts/deps/libseccomp-${LIBSECCOMP_VERSION}.tar.gz /build/
-RUN tar xzf /build/libseccomp-${LIBSECCOMP_VERSION}.tar.gz -C / \
- && rm /build/libseccomp-${LIBSECCOMP_VERSION}.tar.gz
-
-COPY artifacts/deps/libsystemd-${LIBSYSTEMD_VERSION}.tar.gz /build/
-RUN tar xzf /build/libsystemd-${LIBSYSTEMD_VERSION}.tar.gz -C / \
- && rm /build/libsystemd-${LIBSYSTEMD_VERSION}.tar.gz
+# C-библиотеки для статической линковки.
+# Каждый образ содержит библиотеку и все её транзитивные зависимости:
+#   libdevmapper — включает libaio
+#   libbtrfs     — включает zlib, zstd, lzo, e2fsprogs, libmount, libudev и др.
+#   libseccomp   — standalone
+#   libsystemd   — включает libcap, libmount, libgcrypt, libseccomp, liblzma, liblz4, libselinux и др.
+COPY --from=libdevmapper-build /out/ /
+COPY --from=libbtrfs-build /out/ /
+COPY --from=libseccomp-build /out/ /
+COPY --from=libsystemd-build /out/ /
 
 RUN ldconfig
 

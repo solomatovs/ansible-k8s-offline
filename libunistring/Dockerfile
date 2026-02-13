@@ -5,11 +5,13 @@
 #   /out/usr/include/unistr.h и др.  — заголовочные файлы
 # Использование: COPY --from=libunistring:1.1-build /out /
 
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### compilation ####
 ARG LIBUNISTRING_VERSION=1.1
 
 
@@ -23,8 +25,12 @@ RUN tar xzf libunistring-${LIBUNISTRING_VERSION}.tar.gz \
  && make -j$(nproc) \
  && make DESTDIR=/out install \
  && find /out -name '*.la' -delete \
- && { rm -rf /out/usr/share/info /out/usr/share/doc 2>/dev/null || true; }
+ && { rm -rf /out/usr/share/info /out/usr/share/doc 2>/dev/null || true; } \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
+
 COPY --from=builder /out /out

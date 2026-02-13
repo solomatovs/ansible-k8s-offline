@@ -4,10 +4,6 @@
 PROJECT     := libsystemd
 BASE_IMAGE  := astra-linux:2.12
 
-ARTIFACTS_SRC := artifacts/src
-
-SRC_FILE = $(ARTIFACTS_SRC)/systemd-$(PF_VERSION).tar.gz
-
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \
 	test -f /out/usr/lib/libsystemd.a && \
@@ -21,10 +17,5 @@ _TEST_CMD = sh -c '\
 	echo "=== pkg-config ===" && \
 	cat /out/usr/lib/pkgconfig/libsystemd.pc && \
 	echo "" && echo "libsystemd build: ok"'
-
-# --- Скачивание исходников ---
-$(ARTIFACTS_SRC)/systemd-%.tar.gz:
-	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(GITHUB_URL)/systemd/systemd/archive/refs/tags/v$*.tar.gz
 
 include ../mk/project.mk

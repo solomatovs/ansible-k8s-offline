@@ -96,8 +96,8 @@ if [[ $# -eq 0 ]]; then
     echo "Output: topologically sorted list of project:profile" >&2
     echo "" >&2
     echo "Example:" >&2
-    echo "  $0 openssl:1.1.1w-r1" >&2
-    echo "  → gcc:8.5.0-r1 toolchain-gcc:8.5.0-r1 zlib:1.3.1-r1 openssl:1.1.1w-r1" >&2
+    echo "  $0 openssl:1.1.1w" >&2
+    echo "  → gcc:8.5.0 toolchain-gcc:8.5.0 zlib:1.3.1 openssl:1.1.1w" >&2
     exit 1
 fi
 

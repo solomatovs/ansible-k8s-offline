@@ -4,10 +4,6 @@
 PROJECT     := libmount
 BASE_IMAGE  := astra-linux:2.12
 
-ARTIFACTS_SRC := artifacts/src
-
-SRC_FILE = $(ARTIFACTS_SRC)/util-linux-$(PF_VERSION).tar.gz
-
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \
 	test -f /out/usr/lib/libmount.a && \
@@ -24,10 +20,5 @@ _TEST_CMD = sh -c '\
 	echo "=== pkg-config ===" && \
 	cat /out/usr/lib/pkgconfig/mount.pc && \
 	echo "" && echo "libmount build: ok"'
-
-# --- Скачивание исходников ---
-$(ARTIFACTS_SRC)/util-linux-%.tar.gz:
-	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(GITHUB_URL)/util-linux/util-linux/archive/refs/tags/v$*.tar.gz
 
 include ../mk/project.mk

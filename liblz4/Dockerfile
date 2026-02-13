@@ -8,11 +8,13 @@
 #   /out/usr/lib/pkgconfig/liblz4.pc   — pkg-config
 # Использование: COPY --from=liblz4:1.9.3-build /out /
 
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### compilation ####
 ARG LIBLZ4_VERSION=1.9.3
 
 
@@ -28,8 +30,12 @@ WORKDIR /build/lz4
 
 RUN make -j$(nproc) lib PREFIX=/usr LIBDIR=/usr/lib \
  && make DESTDIR=/out PREFIX=/usr LIBDIR=/usr/lib install \
- && find /out -name '*.la' -delete
+ && find /out -name '*.la' -delete \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
+
 COPY --from=builder /out /out

@@ -4,11 +4,13 @@
 #   /out/usr/lib/x86_64-linux-gnu/libaio.{a,so*}
 # Используется как build-зависимость: libdevmapper (LVM2).
 
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### compilation ####
 ARG LIBAIO_VERSION=0.3.113
 
 
@@ -24,8 +26,12 @@ RUN make -C libaio-${LIBAIO_VERSION} -j$(nproc) \
  && make -C libaio-${LIBAIO_VERSION} \
       prefix=/usr \
       libdir=/usr/lib/x86_64-linux-gnu \
-      DESTDIR=/out install
+      DESTDIR=/out install \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
+
 COPY --from=builder /out /out

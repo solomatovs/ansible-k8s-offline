@@ -4,10 +4,6 @@
 PROJECT     := libseccomp
 BASE_IMAGE  := astra-linux:2.12
 
-ARTIFACTS_SRC := artifacts/src
-
-SRC_FILE = $(ARTIFACTS_SRC)/libseccomp-$(PF_VERSION).tar.gz
-
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \
 	test -f /out/usr/lib/libseccomp.a && \
@@ -19,10 +15,5 @@ _TEST_CMD = sh -c '\
 	echo "=== pkg-config ===" && \
 	cat /out/usr/lib/pkgconfig/libseccomp.pc && \
 	echo "" && echo "libseccomp build: ok"'
-
-# --- Скачивание исходников ---
-$(ARTIFACTS_SRC)/libseccomp-%.tar.gz:
-	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(GITHUB_URL)/seccomp/libseccomp/releases/download/v$*/libseccomp-$*.tar.gz
 
 include ../mk/project.mk

@@ -1,5 +1,4 @@
 # Сборка git из исходников.
-# C-зависимости (curl, zlib, openssl) подаются как файловые зависимости из artifacts/deps/ (make deps).
 # Результат: /out (--prefix=/usr)
 #   /out/usr/bin/git                   — бинарник git
 #   /out/usr/libexec/git-core/*        — вспомогательные утилиты
@@ -7,27 +6,28 @@
 # Использование: COPY --from=git:2.42.0-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### <zlib:1.3.1:compilation> ####
+#### <brotli:1.1.0:compilation> ####
+#### <zstd:1.5.5:compilation> ####
+#### <nghttp2:1.58.0:compilation> ####
+#### <nghttp3:1.1.0:compilation> ####
+#### <ngtcp2:1.2.0:compilation> ####
+#### <libunistring:1.1:compilation> ####
+#### <libidn2:2.3.4:compilation> ####
+#### <bison:3.8.2:compilation> ####
+#### <openssl:1.1.1w:compilation> ####
+#### <kerberos:1.20.1:compilation> ####
+#### <openldap:2.6.6:compilation> ####
+#### <libssh2:1.11.0:compilation> ####
+#### <curl:8.4.0:compilation> ####
+
+#### compilation ####
 ARG GIT_VERSION=2.42.0
-ARG CURL_VERSION=8.4.0
-ARG ZLIB_VERSION=1.3.1
-ARG OPENSSL_VERSION=1.1.1w
-
-# C-зависимости для сборки (make deps)
-COPY artifacts/deps/curl-${CURL_VERSION}.tar.gz /build/
-RUN tar xzf /build/curl-${CURL_VERSION}.tar.gz -C / \
- && rm /build/curl-${CURL_VERSION}.tar.gz
-
-COPY artifacts/deps/zlib-${ZLIB_VERSION}.tar.gz /build/
-RUN tar xzf /build/zlib-${ZLIB_VERSION}.tar.gz -C / \
- && rm /build/zlib-${ZLIB_VERSION}.tar.gz
-
-COPY artifacts/deps/openssl-${OPENSSL_VERSION}.tar.gz /build/
-RUN tar xzf /build/openssl-${OPENSSL_VERSION}.tar.gz -C / \
- && rm /build/openssl-${OPENSSL_VERSION}.tar.gz
 
 WORKDIR /build
 
@@ -43,8 +43,11 @@ RUN tar xzf git-${GIT_VERSION}.tar.gz \
        --without-tcltk \
  && make -j$(nproc) NO_TCLTK=1 all \
  && make NO_TCLTK=1 DESTDIR=/out install \
- && { rm -rf /out/usr/share/man /out/usr/share/doc 2>/dev/null || true; }
+ && { rm -rf /out/usr/share/man /out/usr/share/doc 2>/dev/null || true; } \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
 COPY --from=builder /out /out

@@ -10,53 +10,7 @@ BASE_IMAGE := astra-linux:2.12
 
 include ../mk/profiles.mk
 
-ARTIFACTS_DEPS   := artifacts/deps
-ARTIFACTS_IMAGES := artifacts/images
-
 include ../mk/backend.mk
-include ../mk/deps.mk
-
-# --- Хелперы для PF_ ---
-_dep_prj = $(word 1,$(subst :, ,$(1)))
-_dep_pid = $(word 2,$(subst :, ,$(1)))
-_dep_ver = $(shell echo '$(call _dep_pid,$(1))' | sed 's/-r[0-9]*$$//')
-_dep_uc  = $(shell echo '$(call _dep_prj,$(1))' | tr 'a-z-' 'A-Z_')
-
-# --- Обработка PF_DEPS ---
-# Все deps получают UC_VERSION и build-arg.
-# Tar.gz deps дополнительно получают правила извлечения.
-define _init_dep
-$(call _dep_uc,$(1))_VERSION := $(call _dep_ver,$(1))
-_DEP_BUILD_ARGS += --build-arg $(call _dep_uc,$(1))_VERSION=$(call _dep_ver,$(1))
-endef
-
-# Deps извлекаемые как tar.gz (остальные — COPY --from в Dockerfile)
-_TAR_DEP_PROJECTS = dpkg buildah git golang
-
-define _gen_dep_rule
-$$(ARTIFACTS_DEPS)/$(call _dep_prj,$(1))-$(call _dep_ver,$(1)).tar.gz:
-	@$$(_INSPECT) $(call _dep_prj,$(1)):$(call _dep_pid,$(1))-build > /dev/null 2>&1 || \
-	  (echo "Error: image $(call _dep_prj,$(1)):$(call _dep_pid,$(1))-build not found"; exit 1)
-	mkdir -p $$(ARTIFACTS_DEPS)
-	@$$(call _extract,$(call _dep_prj,$(1)):$(call _dep_pid,$(1))-build,$$@)
-endef
-
-ifdef PF_DEPS
-$(foreach dep,$(PF_DEPS),$(eval $(call _init_dep,$(dep))))
-$(foreach dep,$(PF_DEPS),\
-  $(if $(filter $(call _dep_prj,$(dep)),$(_TAR_DEP_PROJECTS)),\
-    $(eval $(call _gen_dep_rule,$(dep)))))
-endif
-
-# Tar.gz dep file paths
-_TAR_DEP_FILES = $(strip $(foreach dep,$(PF_DEPS),\
-  $(if $(filter $(call _dep_prj,$(dep)),$(_TAR_DEP_PROJECTS)),\
-    $(ARTIFACTS_DEPS)/$(call _dep_prj,$(dep))-$(call _dep_ver,$(dep)).tar.gz)))
-
-# Image dep references (COPY --from в Dockerfile)
-_IMAGE_DEP_REFS = $(strip $(foreach dep,$(PF_DEPS),\
-  $(if $(filter-out $(_TAR_DEP_PROJECTS),$(call _dep_prj,$(dep))),\
-    $(call _dep_prj,$(dep)):$(call _dep_pid,$(dep))-build)))
 
 # --- Переопределение _run и _shell для devops ---
 # buildah внутри контейнера требует seccomp=unconfined (unshare CLONE_NEWUSER)
@@ -73,6 +27,10 @@ image_name = $(PROJECT):$(1)-build
 _IMAGE     = $(call image_name,$(V))
 _TAR_NAME  = $(PROJECT)-$(V)-build.tar
 
+# --- Рендеринг Dockerfile ---
+_RENDER = ../mk/render-dockerfile.sh $(PROJECT) $(PF_DOCKERFILE)
+_RENDERED_FILE = .rendered.Dockerfile
+
 # --- Build args и метки ---
 _BUILD_ARGS = \
     --build-arg BASE_IMAGE=$(BASE_IMAGE) \
@@ -86,27 +44,29 @@ _LABELS = \
 
 # --- Валидация ---
 check_version = @if [ -z "$(V)" ]; then \
-    echo "Ошибка: укажите профиль (например, make docker/image full-r3)"; \
+    echo "Ошибка: укажите профиль (например, make docker/build full)"; \
     echo "Доступные профили: $(VERSIONS)"; exit 1; fi; \
+    if [ ! -f profiles/$(V).mk ]; then \
+    echo "Ошибка: profiles/$(V).mk не найден"; exit 1; fi; \
     if [ -z "$(PF_VERSION)" ]; then \
     echo "Ошибка: PF_VERSION не определён в profiles/$(V).mk"; exit 1; fi
 
-ensure = @$(call _ensure_check,$(_IMAGE)) $(MAKE) image V=$(V)
+ensure = @$(call _ensure_check,$(_IMAGE)) $(MAKE) build V=$(V)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help show-versions deps image test shell clean $(VERSIONS)
+.PHONY: help show-urls show-versions download render build test shell clean $(VERSIONS)
 
 help:
 	@echo "Usage: make docker/<target> <profile>   (на хосте, через Docker)"
 	@echo "       make buildah/<target> <profile>  (внутри devcontainer, через Buildah)"
 	@echo ""
 	@echo "Targets:"
-	@echo "  deps    <profile>   Извлечь бинарные зависимости из Docker-образов в artifacts/deps/"
-	@echo "  image   <profile>   Собрать образ и экспортировать в artifacts/images/"
+	@echo "  render  <profile>   Показать отрендеренный Dockerfile (stdout)"
+	@echo "  build   <profile>   Собрать образ и экспортировать в artifacts/images/"
 	@echo "  test    <profile>   Проверить артефакты: dpkg, buildah, go version"
 	@echo "  shell   <profile>   Shell в образе"
-	@echo "  clean   <profile>   Удалить образы и артефакты"
+	@echo "  clean   [profile]   Удалить образы и артефакты"
 	@echo "  show-versions <profile>  Показать версии инструментов в профиле"
 	@echo ""
 	@echo "  Доступные профили: $(VERSIONS)"
@@ -114,46 +74,46 @@ ifdef PF_DEPS
 	@echo ""
 	@echo "  Зависимости (PF_DEPS):"
 	@$(foreach dep,$(PF_DEPS),printf '    %s\n' '$(dep)';)
-	@echo ""
-	@echo "  Image deps (COPY --from в Dockerfile):"
-	@$(foreach img,$(_IMAGE_DEP_REFS),printf '    %s\n' '$(img)';)
-	@echo ""
-	@echo "  Tar.gz deps (извлекаются в artifacts/deps/):"
-	@$(foreach f,$(_TAR_DEP_FILES),printf '    %s\n' '$(f)';)
 endif
 	@echo ""
 	@echo "  Примеры:"
-	@echo "    make docker/deps full-r3"
-	@echo "    make docker/image full-r3"
-	@echo "    make docker/test full-r3"
+	@echo "    make docker/build full"
+	@echo "    make docker/test  full"
 
 show-versions:
 	$(call check_version)
 	@echo "devops профиль «$(V)»:"
-	@$(foreach dep,$(PF_DEPS),printf '  %-20s = %s\n' '$(call _dep_uc,$(dep))_VERSION' '$(call _dep_ver,$(dep))';)
+	@$(foreach dep,$(PF_DEPS),printf '  %-20s = %s\n' '$(call _dep_prj,$(dep))' '$(call _dep_pid,$(dep))';)
 	@echo ""
 	@echo "  Образ: $(_IMAGE)"
 
-# --- Извлечение бинарных зависимостей ---
-deps:
+show-urls:
 	$(call check_version)
-	$(if $(_TAR_DEP_FILES),@$(MAKE) $(_TAR_DEP_FILES))
+	@$(MAKE) --no-print-directory _list_urls V=$(V) DEST=$(PROJECT)/$(ARTIFACTS_SRC) | sort -u
+
+# --- Скачивание исходников (рекурсивно через _download_to) ---
+download:
+	$(call check_version)
+	@$(MAKE) _download_to V=$(V) DEST=$(CURDIR)/$(ARTIFACTS_SRC)
 
 # =============================================================================
 # Targets (backend выбирается через BACKEND)
 # =============================================================================
 
-image:
+render:
 	$(call check_version)
-	@$(foreach img,$(_IMAGE_DEP_REFS),\
-	  $(_INSPECT) $(img) > /dev/null 2>&1 || \
-	  { echo "Error: image $(img) not found" >&2; exit 1; };)
-	@$(foreach f,$(_TAR_DEP_FILES),$(call check_dep,$(f)))
+	@$(_RENDER) > $(_RENDERED_FILE)
+	@cat $(_RENDERED_FILE)
+
+build:
+	$(call check_version)
+	@$(MAKE) --no-print-directory _check_src V=$(V) DEST=$(CURDIR)/$(ARTIFACTS_SRC)
+	@$(_RENDER) > $(_RENDERED_FILE)
 	$(_BUILD) \
 	  $(_BUILD_ARGS) \
 	  $(_LABELS) \
-	  -f $(PF_DOCKERFILE) \
-	  -t $(_IMAGE) .
+	  -f $(_RENDERED_FILE) \
+	  -t $(_IMAGE) ..
 	mkdir -p $(ARTIFACTS_IMAGES)
 	$(call _save,$(_IMAGE),$(ARTIFACTS_IMAGES)/$(_TAR_NAME))
 
@@ -169,10 +129,14 @@ shell:
 	@$(call _shell,$(_IMAGE))
 
 clean:
-	$(call check_version)
-	@docker rmi $(_IMAGE) 2>/dev/null || true
-	@buildah rmi $(_IMAGE) 2>/dev/null || true
-	@rm -rf $(ARTIFACTS_IMAGES) $(ARTIFACTS_DEPS)
+	@if [ -n "$(V)" ]; then \
+	  docker rmi $(call image_name,$(V)) 2>/dev/null || true; \
+	  buildah rmi $(call image_name,$(V)) 2>/dev/null || true; \
+	  rm -f $(ARTIFACTS_IMAGES)/$(PROJECT)-$(V)-build.tar; \
+	else \
+	  for v in $(VERSIONS); do $(MAKE) clean V=$$v; done; \
+	  rm -rf $(ARTIFACTS_IMAGES); \
+	fi
 
 # =============================================================================
 # Namespace shortcuts: make docker/<target> или make buildah/<target>
@@ -183,6 +147,6 @@ docker/%:
 buildah/%:
 	@$(MAKE) $* BACKEND=buildah $(if $(V),V=$(V))
 
-# Catch-all: профиль как цель (например, make docker/image full-r3)
+# Catch-all: профиль как цель (например, make docker/build full)
 $(VERSIONS):
 	@:

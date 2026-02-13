@@ -6,11 +6,13 @@
 #   /out/usr/lib/pkgconfig/libnghttp2.pc   — pkg-config
 # Использование: COPY --from=nghttp2:1.58.0-build /out /
 
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### compilation ####
 ARG NGHTTP2_VERSION=1.58.0
 
 WORKDIR /build
@@ -22,8 +24,12 @@ RUN tar xzf nghttp2-${NGHTTP2_VERSION}.tar.gz \
  && ./configure --prefix=/usr --enable-static --enable-shared --enable-lib-only \
  && make -j$(nproc) \
  && make DESTDIR=/out install \
- && find /out -name '*.la' -delete
+ && find /out -name '*.la' -delete \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
+
 COPY --from=builder /out /out

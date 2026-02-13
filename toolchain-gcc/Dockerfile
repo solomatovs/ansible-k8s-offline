@@ -1,8 +1,9 @@
 # Унифицированный toolchain: наш GCC + общие build-инструменты + единые CFLAGS.
-# Используется как базовый образ для builder-стадии всех библиотечных проектов.
+# Используется как шаблонный регион для builder-стадии всех библиотечных проектов.
 #
 # Содержит:
-#   - GCC (gcc, g++, libstdc++, libgcc)  — из проекта gcc/
+#   - Bootstrap: build-essential (системный gcc для компиляции нашего gcc)
+#   - GCC (gcc, g++, libstdc++, libgcc)  — из исходников (#### <gcc:8.5.0:compilation> ####)
 #   - Autotools: make, autoconf, automake, libtool, pkg-config, m4, gettext
 #   - Build tools: cmake, meson, ninja-build, binutils, file, patch
 #   - Languages: perl, python3, python3-setuptools, python3-jinja2
@@ -10,24 +11,21 @@
 #   - Унифицированные ENV: CC, CXX, CFLAGS, CXXFLAGS, LDFLAGS
 #
 # Использование в проектах:
-#   ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
-#   FROM ${TOOLCHAIN_IMAGE} AS builder
+#   FROM ${BASE_IMAGE} AS builder
+#   #### <toolchain-gcc:8.5.0:toolchain> ####
 #   ...
-#   FROM ${BASE_IMAGE}
-#   COPY --from=builder /out /out
 
 ARG BASE_IMAGE=astra-linux:2.12
-ARG GCC_IMAGE=gcc:8.5.0-r1-build
-
-FROM ${GCC_IMAGE} AS gcc-build
 
 FROM ${BASE_IMAGE}
 
+#### toolchain ####
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Общие build-инструменты из apt (НЕ компиляторы — gcc из нашей сборки)
+# Bootstrap-компилятор (системный gcc) + все build-инструменты одним слоем
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        build-essential \
         make \
         autoconf \
         automake \
@@ -58,9 +56,8 @@ RUN apt-get update \
         libmpc-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Наш GCC (замена системного gcc 6.3)
-COPY --from=gcc-build /out/ /
-RUN ldconfig
+# Наш GCC из исходников (заменяет системный gcc)
+#### <gcc:8.5.0:compilation> ####
 
 # Унифицированные флаги компиляции для всех проектов
 ENV CC=gcc \
@@ -69,3 +66,4 @@ ENV CC=gcc \
     CXXFLAGS="-O2 -fPIC -pipe" \
     LDFLAGS="" \
     PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig"
+#### toolchain ####

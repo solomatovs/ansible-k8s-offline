@@ -4,11 +4,13 @@
 #   /out/usr/lib/x86_64-linux-gnu/libbz2.{a,so*}
 # Используется как build-зависимость: dpkg.
 
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### compilation ####
 ARG BZIP2_VERSION=1.0.8
 
 
@@ -33,8 +35,11 @@ RUN mkdir -p /out/usr/lib/x86_64-linux-gnu /out/usr/include \
  && cp bzlib.h /out/usr/include/ \
  && cp libbz2.a /out/usr/lib/x86_64-linux-gnu/ \
  && cp -a libbz2.so* /out/usr/lib/x86_64-linux-gnu/ \
- && ldconfig -n /out/usr/lib/x86_64-linux-gnu
+ && ldconfig -n /out/usr/lib/x86_64-linux-gnu \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
 COPY --from=builder /out /out

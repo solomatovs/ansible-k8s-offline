@@ -1,13 +1,15 @@
 # Сборка Go компилятора из исходников с использованием toolchain-golang.
 # Каждая версия Go собирается предыдущей версией из цепочки bootstrap.
-# TOOLCHAIN_IMAGE (toolchain-golang) уже содержит Go в /usr/local/go и gcc для CGO.
+# TOOLCHAIN_GOLANG_IMAGE (toolchain-golang) уже содержит Go в /usr/local/go и gcc для CGO.
 # Результат: /out/usr/local/go/{bin,pkg,src}
 # Использование: COPY --from=golang:1.24.5-r1-build /out /
 
-ARG TOOLCHAIN_IMAGE
+ARG TOOLCHAIN_GOLANG_IMAGE
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${TOOLCHAIN_GOLANG_IMAGE} AS builder
+
+#### <toolchain-gcc:8.5.0:toolchain> ####
 
 ARG GOLANG_VERSION
 ARG GO_PROXY_URL=https://proxy.golang.org

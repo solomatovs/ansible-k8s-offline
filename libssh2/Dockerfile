@@ -1,5 +1,4 @@
 # Сборка статической и динамической библиотеки libssh2 из исходников.
-# C-зависимости (openssl, zlib) подаются как файловые зависимости из artifacts/deps/ (make deps).
 # Результат: /out (--prefix=/usr)
 #   /out/usr/lib/libssh2.a              — статическая библиотека
 #   /out/usr/lib/libssh2.so*            — динамическая библиотека
@@ -8,22 +7,16 @@
 # Использование: COPY --from=libssh2:1.11.0-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### <zlib:1.3.1:compilation> ####
+#### <openssl:1.1.1w:compilation> ####
+
+#### compilation ####
 ARG LIBSSH2_VERSION=1.11.0
-ARG OPENSSL_VERSION=1.1.1w
-ARG ZLIB_VERSION=1.3.1
-
-# C-зависимости для сборки (make deps)
-COPY artifacts/deps/openssl-${OPENSSL_VERSION}.tar.gz /build/
-RUN tar xzf /build/openssl-${OPENSSL_VERSION}.tar.gz -C / \
- && rm /build/openssl-${OPENSSL_VERSION}.tar.gz
-
-COPY artifacts/deps/zlib-${ZLIB_VERSION}.tar.gz /build/
-RUN tar xzf /build/zlib-${ZLIB_VERSION}.tar.gz -C / \
- && rm /build/zlib-${ZLIB_VERSION}.tar.gz
 
 WORKDIR /build
 
@@ -38,8 +31,11 @@ RUN tar xzf libssh2-${LIBSSH2_VERSION}.tar.gz \
  && make -j$(nproc) \
  && make DESTDIR=/out install \
  && find /out -name '*.la' -delete \
- && { rm -rf /out/usr/share/man /out/usr/share/doc 2>/dev/null || true; }
+ && { rm -rf /out/usr/share/man /out/usr/share/doc 2>/dev/null || true; } \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
 COPY --from=builder /out /out

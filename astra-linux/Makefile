@@ -19,25 +19,25 @@ ensure_docker  = @docker inspect $(1) > /dev/null 2>&1 || $(MAKE) $(2)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help image clean docker-image docker-clean
+.PHONY: help build clean docker-build docker-clean
 
 help:
 	@echo "Usage: make docker/<target>    (на хосте, через Docker)"
 	@echo "       make buildah/<target>   (внутри devcontainer, через Buildah)"
 	@echo ""
 	@echo "Targets:"
-	@echo "  image            Импортировать и экспортировать образ в artifacts/images/"
+	@echo "  build            Импортировать и экспортировать образ в artifacts/images/"
 	@echo "  clean            Удалить образы, артефакты"
 	@echo ""
 	@echo "Примеры:"
-	@echo "  make docker/image"
-	@echo "  make buildah/image"
+	@echo "  make docker/build"
+	@echo "  make buildah/build"
 
 # =============================================================================
 # Buildah-based (внутри buildah devcontainer)
 # =============================================================================
 
-image:
+build:
 	buildah pull docker-archive:$(ARCHIVE)
 	buildah tag $(ARCHIVE_TAG) $(IMAGE_NAME)
 	mkdir -p $(ARTIFACTS_IMAGES)
@@ -53,7 +53,7 @@ clean:
 # Docker-based (на хосте)
 # =============================================================================
 
-docker-image:
+docker-build:
 	docker load -i $(ARCHIVE)
 	docker tag $(ARCHIVE_TAG) $(IMAGE_NAME)
 	mkdir -p $(ARTIFACTS_IMAGES)

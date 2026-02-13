@@ -6,19 +6,18 @@
 #   /out/usr/lib/x86_64-linux-gnu/crt1.o             — CRT startup
 #   /out/usr/include/stdio.h, stdlib.h ...           — C headers
 # Использование: COPY --from=glibc:2.28-build /out /
-#
-# Зависимости (должны быть извлечены до сборки: make deps):
-#   - artifacts/deps/bison-<version>.tar.gz
-#   - artifacts/deps/gawk-<version>.tar.gz
 
 ARG BASE_IMAGE=astra-linux:2.12
+ARG BISON_IMAGE
+ARG GAWK_IMAGE
+
+FROM ${BISON_IMAGE} AS bison-build
+FROM ${GAWK_IMAGE} AS gawk-build
 
 FROM ${BASE_IMAGE} AS builder
 
 ARG GLIBC_VERSION=2.28
 ARG KERNEL_VERSION=4.15.18
-ARG BISON_VERSION=3.8.2
-ARG GAWK_VERSION=5.2.2
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -29,14 +28,10 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # --- bison + m4 (парсер-генератор, нужен glibc build system) ---
-COPY artifacts/deps/bison-${BISON_VERSION}.tar.gz /build/
-RUN tar xzf /build/bison-${BISON_VERSION}.tar.gz -C / \
- && rm /build/bison-${BISON_VERSION}.tar.gz
+COPY --from=bison-build /out/ /
 
 # --- gawk (GNU awk, нужен glibc build system) ---
-COPY artifacts/deps/gawk-${GAWK_VERSION}.tar.gz /build/
-RUN tar xzf /build/gawk-${GAWK_VERSION}.tar.gz -C / \
- && rm /build/gawk-${GAWK_VERSION}.tar.gz
+COPY --from=gawk-build /out/ /
 
 # --- Kernel headers (UAPI) из исходников ядра ---
 # Вместо linux-headers-* из apt: скачиваем исходники ядра и делаем

@@ -4,33 +4,18 @@
 # Использование: COPY --from=dpkg-astra:1.23.5-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### <bzip2:1.0.8:compilation> ####
+#### <libmd:1.1.0:compilation> ####
+#### <liblzma:5.2.2:compilation> ####
+#### <zstd:1.5.5:compilation> ####
+
+#### compilation ####
 ARG DPKG_VERSION=1.23.5
-ARG LIBMD_VERSION=1.1.0
-ARG LIBLZMA_VERSION=5.2.2
-ARG ZSTD_VERSION=1.5.5
-ARG BZIP2_VERSION=1.0.8
-
-# C-зависимости из наших сборок (вместо apt -dev пакетов)
-COPY artifacts/deps/bzip2-${BZIP2_VERSION}.tar.gz /build/
-RUN tar xzf /build/bzip2-${BZIP2_VERSION}.tar.gz -C / \
- && ldconfig \
- && rm /build/bzip2-${BZIP2_VERSION}.tar.gz
-
-COPY artifacts/deps/libmd-${LIBMD_VERSION}.tar.gz /build/
-RUN tar xzf /build/libmd-${LIBMD_VERSION}.tar.gz -C / \
- && rm /build/libmd-${LIBMD_VERSION}.tar.gz
-
-COPY artifacts/deps/liblzma-${LIBLZMA_VERSION}.tar.gz /build/
-RUN tar xzf /build/liblzma-${LIBLZMA_VERSION}.tar.gz -C / \
- && rm /build/liblzma-${LIBLZMA_VERSION}.tar.gz
-
-COPY artifacts/deps/zstd-${ZSTD_VERSION}.tar.gz /build/
-RUN tar xzf /build/zstd-${ZSTD_VERSION}.tar.gz -C / \
- && rm /build/zstd-${ZSTD_VERSION}.tar.gz
 
 WORKDIR /build
 
@@ -97,8 +82,11 @@ RUN make DESTDIR=/out install \
           /out/usr/bin/dpkg-realpath \
           /out/usr/bin/dpkg-split \
           /out/usr/bin/dpkg-statoverride \
-          /out/usr/bin/dpkg-trigger
+          /out/usr/bin/dpkg-trigger \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки, без build-essential и исходников.
 FROM ${BASE_IMAGE}
 COPY --from=builder /out /out

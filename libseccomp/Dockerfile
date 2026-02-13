@@ -6,11 +6,13 @@
 #   /out/usr/lib/pkgconfig/libseccomp.pc — pkg-config
 # Использование: COPY --from=libseccomp:2.5.5-build /out /
 
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### compilation ####
 ARG LIBSECCOMP_VERSION=2.5.5
 
 WORKDIR /build
@@ -26,8 +28,12 @@ WORKDIR /build/libseccomp
 RUN ./configure --prefix=/usr --libdir=/usr/lib --enable-static --enable-shared \
  && make -j$(nproc) \
  && make DESTDIR=/out install \
- && find /out -name '*.la' -delete
+ && find /out -name '*.la' -delete \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
+
 COPY --from=builder /out /out

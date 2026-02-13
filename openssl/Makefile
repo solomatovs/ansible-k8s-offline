@@ -4,10 +4,6 @@
 PROJECT    := openssl
 BASE_IMAGE := astra-linux:2.12
 
-ARTIFACTS_SRC := artifacts/src
-
-SRC_FILE = $(ARTIFACTS_SRC)/openssl-$(PF_VERSION).tar.gz
-
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \
 	test -f /out/usr/lib/libssl.a && \
@@ -19,10 +15,5 @@ _TEST_CMD = sh -c '\
 	echo "=== pkg-config ===" && \
 	cat /out/usr/lib/pkgconfig/openssl.pc && \
 	echo "" && echo "openssl build: ok"'
-
-# --- Скачивание исходников ---
-$(ARTIFACTS_SRC)/openssl-%.tar.gz:
-	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(OPENSSL_URL)/openssl-$*.tar.gz
 
 include ../mk/project.mk

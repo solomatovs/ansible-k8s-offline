@@ -1,7 +1,6 @@
 # Сборка статической и динамической библиотеки Kerberos 5 (MIT) из исходников.
 # MIT Kerberos не поддерживает одновременную сборку static + shared,
-# поэтому сборка выполняется в два этапа.
-# C-зависимость (openssl) подаётся как файловая зависимость из artifacts/deps/ (make deps).
+# поэтому сборка выполняется в два этапа в одном контейнере.
 # Результат: /out (--prefix=/usr)
 #   /out/usr/lib/libgssapi_krb5.a      — статическая библиотека GSSAPI
 #   /out/usr/lib/libkrb5.a             — статическая библиотека Kerberos 5
@@ -14,23 +13,17 @@
 # Использование: COPY --from=kerberos:1.20.1-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${TOOLCHAIN_IMAGE} AS builder-shared
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### <zlib:1.3.1:compilation> ####
+#### <bison:3.8.2:compilation> ####
+#### <openssl:1.1.1w:compilation> ####
+
+#### compilation ####
 ARG KERBEROS_VERSION=1.20.1
-ARG OPENSSL_VERSION=1.1.1w
-ARG BISON_VERSION=3.8.2
-
-# --- bison + m4 (build-зависимость) ---
-COPY artifacts/deps/bison-${BISON_VERSION}.tar.gz /build/
-RUN tar xzf /build/bison-${BISON_VERSION}.tar.gz -C / \
- && rm /build/bison-${BISON_VERSION}.tar.gz
-
-# C-зависимость для сборки (make deps)
-COPY artifacts/deps/openssl-${OPENSSL_VERSION}.tar.gz /build/
-RUN tar xzf /build/openssl-${OPENSSL_VERSION}.tar.gz -C / \
- && rm /build/openssl-${OPENSSL_VERSION}.tar.gz
 
 WORKDIR /build
 
@@ -48,27 +41,9 @@ RUN tar xzf krb5-${KERBEROS_VERSION}.tar.gz \
  && find /out -name '*.la' -delete \
  && { rm -rf /out/usr/share/man /out/usr/share/doc /out/usr/share/examples 2>/dev/null || true; }
 
-# Этап 2: static-библиотеки
-FROM ${TOOLCHAIN_IMAGE} AS builder-static
-
-ARG KERBEROS_VERSION=1.20.1
-ARG OPENSSL_VERSION=1.1.1w
-ARG BISON_VERSION=3.8.2
-
-# --- bison + m4 (build-зависимость) ---
-COPY artifacts/deps/bison-${BISON_VERSION}.tar.gz /build/
-RUN tar xzf /build/bison-${BISON_VERSION}.tar.gz -C / \
- && rm /build/bison-${BISON_VERSION}.tar.gz
-
-COPY artifacts/deps/openssl-${OPENSSL_VERSION}.tar.gz /build/
-RUN tar xzf /build/openssl-${OPENSSL_VERSION}.tar.gz -C / \
- && rm /build/openssl-${OPENSSL_VERSION}.tar.gz
-
-WORKDIR /build
-
-COPY artifacts/src/krb5-${KERBEROS_VERSION}.tar.gz /build/
-
-RUN tar xzf krb5-${KERBEROS_VERSION}.tar.gz \
+# Этап 2: static-библиотеки (перекомпиляция в том же контейнере)
+RUN cd /build && rm -rf krb5-${KERBEROS_VERSION} \
+ && tar xzf krb5-${KERBEROS_VERSION}.tar.gz \
  && cd krb5-${KERBEROS_VERSION}/src \
  && ./configure --prefix=/usr --libdir=/usr/lib \
        --disable-shared --enable-static \
@@ -76,9 +51,13 @@ RUN tar xzf krb5-${KERBEROS_VERSION}.tar.gz \
        --without-tcl \
  && make -j$(nproc) || true \
  && make install DESTDIR=/out-static \
- && find /out-static -name '*.la' -delete
+ && find /out-static -name '*.la' -delete \
+ && cp /out-static/usr/lib/*.a /out/usr/lib/ \
+ && rm -rf /out-static \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — объединяем shared + static + pkg-config
 FROM ${BASE_IMAGE}
-COPY --from=builder-shared /out /out
-COPY --from=builder-static /out-static/usr/lib/*.a /out/usr/lib/
+COPY --from=builder /out /out

@@ -10,19 +10,16 @@
 # Использование: COPY --from=libselinux:2.6-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### <pcre:8.45:compilation> ####
+
+#### compilation ####
 ARG LIBSELINUX_VERSION=2.6
 ARG SEPOL_VERSION=2.6
-ARG PCRE_VERSION=8.45
-
-# --- PCRE (build-зависимость) ---
-COPY artifacts/deps/pcre-${PCRE_VERSION}.tar.gz /build/
-RUN tar xzf /build/pcre-${PCRE_VERSION}.tar.gz -C / \
- && ldconfig \
- && rm /build/pcre-${PCRE_VERSION}.tar.gz
 
 WORKDIR /build
 
@@ -66,8 +63,11 @@ RUN make -C /build/libselinux -j$(nproc) PREFIX=/usr
 # Установка libselinux в /out
 RUN make -C /build/libselinux PREFIX=/out/usr SHLIBDIR=/out/usr/lib install \
  && find /out -name '*.la' -delete \
- && sed -i 's/Requires.private:.*/Requires.private: libsepol/' /out/usr/lib/pkgconfig/libselinux.pc
+ && sed -i 's/Requires.private:.*/Requires.private: libsepol/' /out/usr/lib/pkgconfig/libselinux.pc \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
 COPY --from=builder /out /out

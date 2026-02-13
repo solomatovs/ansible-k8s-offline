@@ -1,16 +1,16 @@
 # Сборка Go 1.4 из исходников (компиляция из C, без bootstrap Go).
 # Два режима:
-#   1) Bootstrap (TOOLCHAIN_IMAGE не задан): FROM BASE_IMAGE + apt build-essential
-#   2) Toolchain (TOOLCHAIN_IMAGE задан): FROM TOOLCHAIN_IMAGE (toolchain-gcc)
+#   1) Bootstrap (TOOLCHAIN_GCC_IMAGE не задан): FROM BASE_IMAGE + apt build-essential
+#   2) Toolchain (TOOLCHAIN_GCC_IMAGE задан): FROM TOOLCHAIN_GCC_IMAGE (toolchain-gcc)
 #
 # 1.4 — первый в цепочке bootstrap: 1.4 → 1.17 → 1.20 → 1.22 → 1.24
 # Результат: /out/usr/local/go/{bin,pkg,src}
 # Использование: COPY --from=golang:1.4-r1-build /out /
 
-ARG TOOLCHAIN_IMAGE=
+ARG TOOLCHAIN_GCC_IMAGE=
 ARG BASE_IMAGE=astra-linux:2.12
 
-# --- Bootstrap stage: используется когда TOOLCHAIN_IMAGE не задан ---
+# --- Bootstrap stage: используется когда TOOLCHAIN_GCC_IMAGE не задан ---
 FROM --platform=linux/amd64 ${BASE_IMAGE} AS base-bootstrap
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
  && rm -rf /var/lib/apt/lists/*
 
 # --- Выбор builder: toolchain если задан, иначе bootstrap ---
-FROM ${TOOLCHAIN_IMAGE:-base-bootstrap} AS builder
+FROM ${TOOLCHAIN_GCC_IMAGE:-base-bootstrap} AS builder
 
 ARG GOLANG_VERSION=1.4
 

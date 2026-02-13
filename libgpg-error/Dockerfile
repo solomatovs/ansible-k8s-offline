@@ -7,11 +7,13 @@
 #   /out/usr/bin/gpg-error-config      — config-скрипт
 # Использование: COPY --from=libgpg-error:1.35-build /out /
 
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### compilation ####
 ARG LIBGPG_ERROR_VERSION=1.35
 
 
@@ -29,8 +31,12 @@ RUN ./configure --prefix=/usr --libdir=/usr/lib --enable-static --enable-shared 
  && make -j$(nproc) \
  && make DESTDIR=/out install \
  && find /out -name '*.la' -delete \
- && { rm -rf /out/usr/share/locale /out/usr/share/info /out/usr/share/man 2>/dev/null || true; }
+ && { rm -rf /out/usr/share/locale /out/usr/share/info /out/usr/share/man 2>/dev/null || true; } \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
+
 COPY --from=builder /out /out

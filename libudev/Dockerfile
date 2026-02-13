@@ -7,23 +7,17 @@
 # Используется как build-зависимость: libbtrfs (btrfs-progs).
 
 ARG BASE_IMAGE=astra-linux:2.12
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### <bison:3.8.2:compilation> ####
+#### <libcap:2.25:compilation> ####
+#### <libmount:2.30.2:compilation> ####
+
+#### compilation ####
 ARG LIBUDEV_VERSION=241
-ARG LIBCAP_VERSION=2.25
-ARG LIBMOUNT_VERSION=2.30.2
-
-# C-зависимости из наших сборок (вместо apt -dev пакетов)
-COPY artifacts/deps/libcap-${LIBCAP_VERSION}.tar.gz /build/
-RUN tar xzf /build/libcap-${LIBCAP_VERSION}.tar.gz -C / \
- && rm /build/libcap-${LIBCAP_VERSION}.tar.gz
-
-COPY artifacts/deps/libmount-${LIBMOUNT_VERSION}.tar.gz /build/
-RUN tar xzf /build/libmount-${LIBMOUNT_VERSION}.tar.gz -C / \
- && ldconfig \
- && rm /build/libmount-${LIBMOUNT_VERSION}.tar.gz
 
 WORKDIR /build
 
@@ -58,8 +52,11 @@ RUN meson setup build \
    && [ -n "$SO_REAL" ] && ln -sf "$SO_REAL" libudev.so.1 && ln -sf libudev.so.1 libudev.so \
    || true ) \
  && find build -name 'libudev.pc' | head -1 | xargs -I{} cp {} /out/usr/lib/pkgconfig/ \
- && cp src/libudev/libudev.h /out/usr/include/
+ && cp src/libudev/libudev.h /out/usr/include/ \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
 COPY --from=builder /out /out

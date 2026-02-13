@@ -4,10 +4,6 @@
 PROJECT    := curl
 BASE_IMAGE := astra-linux:2.12
 
-ARTIFACTS_SRC := artifacts/src
-
-SRC_FILE = $(ARTIFACTS_SRC)/curl-$(PF_VERSION).tar.gz
-
 _TEST_CMD = sh -c '\
 	echo "=== files ===" && \
 	test -f /out/usr/lib/libcurl.a && \
@@ -19,10 +15,5 @@ _TEST_CMD = sh -c '\
 	echo "=== pkg-config ===" && \
 	cat /out/usr/lib/pkgconfig/libcurl.pc && \
 	echo "" && echo "curl build: ok"'
-
-# --- Скачивание исходников ---
-$(ARTIFACTS_SRC)/curl-%.tar.gz:
-	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(CURL_URL)/curl-$*.tar.gz
 
 include ../mk/project.mk

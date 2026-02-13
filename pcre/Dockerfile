@@ -5,11 +5,13 @@
 #   /out/usr/lib/x86_64-linux-gnu/pkgconfig/libpcre.pc
 # Используется как build-зависимость: libselinux.
 
-ARG TOOLCHAIN_IMAGE=toolchain-gcc:8.5.0-r1-build
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM ${BASE_IMAGE} AS builder
 
+#### <toolchain-gcc:8.5.0:toolchain> ####
+
+#### compilation ####
 ARG PCRE_VERSION=8.45
 
 
@@ -33,8 +35,12 @@ RUN cd pcre-${PCRE_VERSION} \
 
 # Удаляем документацию
 RUN rm -rf /out/usr/share /out/usr/bin \
- && find /out -name '*.la' -delete
+ && find /out -name '*.la' -delete \
+ && cp -a /out/* / \
+ && ldconfig \
+ && rm -rf /build/*
+#### compilation ####
 
-# Финальный образ — только результат сборки.
 FROM ${BASE_IMAGE}
+
 COPY --from=builder /out /out
