@@ -7,9 +7,9 @@ ARTIFACTS_SRC ?= artifacts/src
 
 SP ?= $(SEPOL_VERSION)
 
-_EXTRA_BUILD_ARGS  = $(if $(SP),--build-arg SEPOL_VERSION=$(SP)) $(if $(PCRE_VERSION),--build-arg PCRE_VERSION=$(PCRE_VERSION))
+_EXTRA_BUILD_ARGS  = $(if $(SP),--build-arg SEPOL_VERSION=$(SP))
 _EXTRA_SRC_FILES   = $(if $(SP),$(ARTIFACTS_SRC)/libsepol-$(SP).tar.gz)
-_EXTRA_URLS_CMD    = $(if $(SP),echo "$(SELINUX_ARCHIVE_URL)/libsepol-$(SP).tar.gz $(PROJECT)/$(ARTIFACTS_SRC) libsepol-$(SP).tar.gz";)
+_EXTRA_URLS_CMD    = $(if $(SP),echo "$(LIBSELINUX_SRC_URL)/archive/refs/tags/libsepol-$(SP).tar.gz $(PROJECT)/$(ARTIFACTS_SRC) libsepol-$(SP).tar.gz";)
 _EXTRA_CLEAN_FILES = $(if $(SP),$(ARTIFACTS_SRC)/libsepol-$(SP).tar.gz)
 
 _TEST_CMD = sh -c '\
@@ -26,10 +26,8 @@ _TEST_CMD = sh -c '\
 	cat /out/usr/lib/pkgconfig/libselinux.pc && \
 	echo "" && echo "libselinux build: ok"'
 
-SELINUX_ARCHIVE_URL = $(GITHUB_URL)/SELinuxProject/selinux/archive/refs/tags
-
 $(ARTIFACTS_SRC)/libsepol-%.tar.gz:
 	mkdir -p $(ARTIFACTS_SRC)
-	curl -fSL -o $@ $(SELINUX_ARCHIVE_URL)/libsepol-$*.tar.gz
+	curl -fSL -o $@ $(LIBSELINUX_SRC_URL)/archive/refs/tags/libsepol-$*.tar.gz
 
 include ../mk/project.mk
