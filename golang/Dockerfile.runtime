@@ -1,10 +1,13 @@
 # Runtime-образ Go: компилятор установлен в систему (/usr/local/go).
-# Использование: FROM golang-astra:1.24.5-runtime
+# Зависимость: golang:VERSION-build (build-образ с Go в /out/usr/local/go/)
+#
+# Использование: FROM golang:1.24.5-runtime-build
+#   go version   → go version go1.24.5 linux/amd64
 
-ARG BUILD_IMAGE
+ARG GOLANG_IMAGE
 ARG BASE_IMAGE=astra-linux:2.12
 
-FROM ${BUILD_IMAGE} AS build
+FROM ${GOLANG_IMAGE} AS build
 
 FROM ${BASE_IMAGE}
 
