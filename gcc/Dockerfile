@@ -61,10 +61,10 @@ RUN mkdir build && cd build \
  && make DESTDIR=/out install
 
 # Удаляем документацию и info-файлы для уменьшения размера
-RUN rm -rf /out/usr/share/man /out/usr/share/info /out/usr/share/locale \
- && cp -a /out/* / \
- && ldconfig \
- && rm -rf /build/*
+# RUN rm -rf /out/usr/share/man /out/usr/share/info /out/usr/share/locale \
+#  && cp -a /out/* / \
+#  && ldconfig \
+#  && rm -rf /build/*
 #### compilation ####
 
 # Финальный образ — только результат сборки.

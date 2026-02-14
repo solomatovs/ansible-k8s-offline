@@ -1,3 +1,3 @@
 PF_VERSION    = 9.5.0
 PF_DEPS       = gcc:9.5.0
-PF_DOCKERFILE = Dockerfile
+PF_DOCKERFILE = Dockerfile.copy
