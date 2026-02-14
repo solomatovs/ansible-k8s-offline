@@ -58,7 +58,7 @@ _BUILD_ARGS = \
 _TAR_NAME = $(PROJECT)-$(V)-build.tar
 
 # --- Рендеринг Dockerfile (шаблонные ссылки #### <project:profile:region> ####) ---
-_RENDER = ../mk/render-dockerfile.sh $(PROJECT) $(PF_DOCKERFILE)
+_RENDER ?= ../mk/render-dockerfile.sh $(PROJECT) $(PF_DOCKERFILE)
 _RENDERED_FILE = .rendered.Dockerfile
 
 # --- Валидация ---
