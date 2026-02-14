@@ -1,16 +1,16 @@
 # Унифицированный toolchain: GCC из готового образа + build-инструменты + единые CFLAGS.
-# Используется для версий gcc >= 9.5.0 (собранных предыдущей версией компилятора).
-#
-# В отличие от Dockerfile (8.5.0), здесь GCC не компилируется заново —
-# он берётся из готового образа gcc:VERSION-build через COPY --from.
-#
 # Содержит:
 #   - GCC (gcc, g++, libstdc++, libgcc)  — из gcc:VERSION-build
 #   - Autotools: make, autoconf, automake, libtool, pkg-config, m4, gettext
 #   - Build tools: cmake, meson, ninja-build, binutils, file, patch
 #   - Languages: perl, python3, python3-setuptools, python3-jinja2
-#   - Misc: flex, gperf, texinfo, xz-utils, groff-base
+#   - Misc: flex, gperf, texinfo, xz-utils, groff-base, bzip2
 #   - Унифицированные ENV: CC, CXX, CFLAGS, CXXFLAGS, LDFLAGS
+#
+# Использование в downstream-проектах:
+#   ARG GCC_IMAGE
+#   FROM ${GCC_IMAGE} AS builder
+#   ...
 
 ARG BASE_IMAGE=astra-linux:2.12
 ARG GCC_IMAGE

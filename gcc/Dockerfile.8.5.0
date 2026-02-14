@@ -1,17 +1,10 @@
-# Сборка GCC из исходников с использованием предыдущей версии GCC.
-# Каждая версия GCC >= 9.5.0 компилируется предыдущей версией (self-hosting).
-# Предыдущая версия передаётся через GCC_IMAGE build-arg.
+# Сборка GCC 8.5.0 bootstrap-компилятора системным gcc.
+# GCC 8.5.0 — первая версия в цепочке, собирается штатным build-essential.
+# Используется как bootstrap для компиляции более новых версий.
 # Результат: /out — полный компилятор GCC (gcc, g++, runtime-библиотеки).
-#   /out/usr/bin/gcc                          — компилятор C
-#   /out/usr/bin/g++                          — компилятор C++
-#   /out/usr/lib/x86_64-linux-gnu/libgcc_s.so — runtime-библиотека
-#   /out/usr/lib/x86_64-linux-gnu/libstdc++.so — C++ runtime
-# Использование: COPY --from=gcc:VERSION-build /out /
+# Использование: COPY --from=gcc:8.5.0-build /out /
 
 ARG BASE_IMAGE=astra-linux:2.12
-ARG GCC_IMAGE
-
-FROM ${GCC_IMAGE} AS gcc-bootstrap
 
 FROM ${BASE_IMAGE} AS builder
 
@@ -29,12 +22,8 @@ RUN apt-get update \
         libmpc-dev \
  && rm -rf /var/lib/apt/lists/*
 
-# GCC из предыдущей версии (заменяет системный gcc)
-COPY --from=gcc-bootstrap /out /
-RUN ldconfig
-
 #### compilation ####
-ARG GCC_VERSION
+ARG GCC_VERSION=8.5.0
 
 WORKDIR /build
 
