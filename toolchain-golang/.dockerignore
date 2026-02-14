@@ -1,0 +1,3 @@
+artifacts/build/
+artifacts/images/
+.rendered.Dockerfile

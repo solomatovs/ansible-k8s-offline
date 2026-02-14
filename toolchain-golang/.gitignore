@@ -1,0 +1,3 @@
+artifacts/
+config.local.mk
+.rendered.Dockerfile
