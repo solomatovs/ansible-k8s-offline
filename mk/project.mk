@@ -14,6 +14,7 @@
 #   PF_DEPS        — зависимости project:profile (через пробелы, опционально)
 #   PF_SRC_URL     — URL для скачивания исходников (опционально)
 #   PF_SRC_FILE    — имя файла исходников (опционально)
+#   PF_TEST_CMD    — тестовая команда (переопределяет _TEST_CMD, опционально)
 #
 # Опциональные (в Makefile проекта):
 #   _EXTRA_BUILD_ARGS   — дополнительные --build-arg
@@ -165,7 +166,7 @@ test:
 	$(call check_version)
 	$(call ensure,$(V))
 	@echo "=== $(_IMAGE) ==="
-	@$(call _run,$(_IMAGE),$(_TEST_CMD))
+	@$(call _run,$(_IMAGE),$(or $(PF_TEST_CMD),$(_TEST_CMD)))
 
 # --- Shell в образе ---
 shell:

@@ -5,8 +5,8 @@
 #   - git, make, pkg-config
 #
 # Использование в downstream-проектах:
-#   ARG TOOLCHAIN_GOLANG_IMAGE
-#   FROM ${TOOLCHAIN_GOLANG_IMAGE} AS builder
+#   ARG GOLANG_IMAGE
+#   FROM ${GOLANG_IMAGE} AS builder
 #   ...
 
 ARG BASE_IMAGE=astra-linux:2.12
