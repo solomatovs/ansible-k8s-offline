@@ -49,7 +49,7 @@ _LABELS = \
     --label org.opencontainers.image.version=$(V)-build \
     --label org.opencontainers.image.base.name=$(BASE_IMAGE)
 
-_BUILD_ARGS = \
+_BUILD_ARGS ?= \
     --build-arg BASE_IMAGE=$(BASE_IMAGE) \
     --build-arg $(_UC_PROJECT)_VERSION=$(PF_VERSION) \
     $(_DEP_BUILD_ARGS) \

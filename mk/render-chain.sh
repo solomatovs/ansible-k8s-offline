@@ -247,9 +247,10 @@ process_dockerfile() {
             continue
         fi
 
-        # Подставляем конкретную версию
+        # Подставляем конкретную версию (только ${VAR} с фигурными скобками —
+        # форма $VAR без скобок не поддерживается, т.к. невозможно определить
+        # границу имени: $GOLANG_VERSION_EXTRA → 1.24.5_EXTRA)
         line="${line//\$\{${VERSION_VAR}\}/${version}}"
-        line="${line//\$${VERSION_VAR}/${version}}"
 
         # Префиксируем COPY-пути (без --from) именем проекта
         if [[ "$line" =~ ^COPY[[:space:]] ]] && [[ ! "$line" =~ --from ]]; then
