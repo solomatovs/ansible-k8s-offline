@@ -24,4 +24,9 @@ _TEST_CMD = sh -c '\
 _HELP_EXTRA = echo "  Bootstrap-цепочка: 1.4 -> 1.17.13 -> 1.20.6 -> 1.22.6 -> 1.24.5"; \
               echo "  Toolchain-профили: toolchain-1.4, toolchain-1.17.13, ..., toolchain-1.24.5"
 
+# Chain-рендерер: собирает всю bootstrap-цепочку в один multi-stage Dockerfile
+# Все версии и зависимости разрешаются рендерером — передаём только BASE_IMAGE
+_RENDER = ../mk/render-chain.sh $(PROJECT) $(V)
+_BUILD_ARGS = --build-arg BASE_IMAGE=$(BASE_IMAGE)
+
 include ../mk/project.mk
