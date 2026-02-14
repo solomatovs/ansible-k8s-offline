@@ -73,6 +73,9 @@ LZO_URL         ?= http://www.oberhumer.com/opensource/lzo/download
 # --- Hadrons (libmd) ---
 HADRONS_MIRROR  ?= https://archive.hadrons.org
 
+# --- Go module proxy ---
+GOPROXY_URL     ?= https://proxy.golang.org
+
 # =============================================================================
 # Попроектные URL (_SRC_URL)
 #
@@ -128,7 +131,7 @@ PCRE_SRC_URL        ?= $(SOURCEFORGE_URL)/pcre/files/pcre
 export GITHUB_URL GNU_URL GNUPG_FTP_URL CURL_URL ZLIB_URL OPENSSL_URL \
        OPENLDAP_URL KERBEROS_URL KERNEL_URL LIBCAP_URL SOURCEFORGE_URL \
        SOURCEWARE_URL XZ_MIRROR LIBAIO_URL DEBIAN_MIRROR LZO_URL \
-       HADRONS_MIRROR
+       HADRONS_MIRROR GOPROXY_URL
 
 export BISON_SRC_URL GAWK_SRC_URL GCC_SRC_URL GLIBC_SRC_URL \
        LIBIDN2_SRC_URL LIBUNISTRING_SRC_URL LIBSTDCXX_SRC_URL \

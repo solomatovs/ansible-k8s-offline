@@ -37,13 +37,38 @@ if [[ ! -f "$TEMPLATE" ]]; then
 fi
 
 # -----------------------------------------------------------------------------
+# Определить PF_DOCKERFILE из профиля проекта
+# Usage: resolve_dockerfile <project> <profile>
+# Выводит имя Dockerfile (по умолчанию "Dockerfile")
+# -----------------------------------------------------------------------------
+resolve_dockerfile() {
+    local project="$1"
+    local profile="$2"
+    local profile_file="${ROOT}/${project}/profiles/${profile}.mk"
+
+    if [[ -f "$profile_file" ]]; then
+        local pf_df
+        pf_df=$(sed -n 's/^PF_DOCKERFILE[[:space:]]*=[[:space:]]*//p' "$profile_file" | tr -d '[:space:]')
+        if [[ -n "$pf_df" ]]; then
+            echo "$pf_df"
+            return
+        fi
+    fi
+    echo "Dockerfile"
+}
+
+# -----------------------------------------------------------------------------
 # Извлечь именованную область из Dockerfile проекта
-# Usage: extract_region <project> <region_name>
+# Usage: extract_region <project> <profile> <region_name>
+# Dockerfile определяется автоматически из profiles/<profile>.mk → PF_DOCKERFILE
 # -----------------------------------------------------------------------------
 extract_region() {
     local project="$1"
-    local region="$2"
-    local src="${ROOT}/${project}/Dockerfile"
+    local profile="$2"
+    local region="$3"
+    local dockerfile
+    dockerfile=$(resolve_dockerfile "$project" "$profile")
+    local src="${ROOT}/${project}/${dockerfile}"
 
     if [[ ! -f "$src" ]]; then
         echo "Error: Dockerfile not found: ${src}" >&2
@@ -68,7 +93,7 @@ extract_region() {
                 local nest_profile="${BASH_REMATCH[2]}"
                 local nest_region="${BASH_REMATCH[3]}"
                 echo "# --- ${nest_project}:${nest_profile} [${nest_region}] ---"
-                extract_region "$nest_project" "$nest_region"
+                extract_region "$nest_project" "$nest_profile" "$nest_region"
                 continue
             fi
             # Префиксируем COPY-пути ТЕКУЩИМ проектом (для ROOT контекста)
@@ -102,7 +127,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
         ref_profile="${BASH_REMATCH[2]}"
         ref_region="${BASH_REMATCH[3]}"
         echo "# --- ${ref_project}:${ref_profile} [${ref_region}] ---"
-        extract_region "$ref_project" "$ref_region"
+        extract_region "$ref_project" "$ref_profile" "$ref_region"
         continue
     fi
 

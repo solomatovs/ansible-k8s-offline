@@ -1,20 +1,14 @@
-# Сборка Go из исходников с использованием предыдущей версии Go.
-# Каждая версия Go >= 1.5 компилируется предыдущей версией (self-hosting).
-# Предыдущая версия передаётся через GOLANG_IMAGE build-arg.
+# Сборка Go 1.4 bootstrap-компилятора из C-исходников.
+# Go 1.4 — последняя версия Go, написанная на C.
+# Используется как bootstrap для компиляции более новых версий.
 # Результат: /out/usr/local/go/ (bin/, pkg/, src/)
-# Использование: COPY --from=golang:VERSION-build /out/usr/local/go /usr/local/go
+# Использование: COPY --from=golang:1.4-build /out/usr/local/go /usr/local/go
 
 ARG BASE_IMAGE=astra-linux:2.12
-ARG GOLANG_IMAGE
-
-FROM ${GOLANG_IMAGE} AS golang-bootstrap
 
 FROM ${BASE_IMAGE} AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
-
-# Bootstrap Go из предыдущей версии
-COPY --from=golang-bootstrap /out/usr/local/go /usr/local/go-bootstrap
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -24,7 +18,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 #### compilation ####
-ARG GOLANG_VERSION
+ARG GOLANG_VERSION=1.4
 
 WORKDIR /build
 COPY artifacts/src/golang-${GOLANG_VERSION}.tar.gz /build/
@@ -34,7 +28,8 @@ RUN tar xzf golang-${GOLANG_VERSION}.tar.gz \
 
 WORKDIR /build/go-go${GOLANG_VERSION}/src
 
-RUN export GOROOT_BOOTSTRAP=/usr/local/go-bootstrap \
+RUN export CGO_ENABLED=0 \
+ && sed -i '/"-Werror",/d' cmd/dist/build.c \
  && ./make.bash
 
 RUN mkdir -p /out/usr/local/go \
